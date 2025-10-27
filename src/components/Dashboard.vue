@@ -1,6 +1,6 @@
 <template>
-  <div class="p-4">
-    <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
+  <div class="container mx-auto px-4 py-8">
+  <div class="mx-auto p-4">
     <div class="grid grid-cols-1 gap-4">
       <div class="bg-white p-4 rounded-lg shadow">
         <div class="chart-container" style="position: relative; height:40vh; width:80vw">
@@ -8,6 +8,7 @@
         </div>
       </div>
     </div>
+  </div>
   </div>
 </template>
 

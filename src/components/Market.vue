@@ -1,6 +1,5 @@
 <template>
-  <div class="container px-4 py-8">
-    <h1 class="text-3xl font-bold mb-4">Market</h1>
+  <div class="container mx-auto px-4 py-8">
     <div class="bg-white rounded-lg shadow overflow-hidden">
       <table class="min-w-full leading-normal">
         <thead>
