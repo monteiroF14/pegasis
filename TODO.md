@@ -1,13 +1,13 @@
 ## Sprint 1: Fundamentos
 
 ### 1. Configuração e Estrutura do Projeto
-- [ ] Preparar o ambiente de desenvolvimento com as ferramentas necessárias para navegação, gestão de dados e testes.
-- [ ] Criar ficheiro json-server 
-- [ ] Organizar a estrutura do projeto. 
+- [x] Preparar o ambiente de desenvolvimento com as ferramentas necessárias para navegação, gestão de dados e testes.
+- [x] Criar ficheiro json-server 
+- [x] Organizar a estrutura do projeto. 
 
 ### 2. Navegação e Páginas Principais
-- [ ] Implementar o sistema de rotas.
-- [ ] Criar as quatro páginas principais da aplicação:
+- [x] Implementar o sistema de rotas.
+- [] Criar as quatro páginas principais da aplicação:
   - **Dashboard:** A página inicial que mostrará um resumo do mercado e do progresso do utilizador.
   - **Mercado:** Para explorar e pesquisar diferentes ações.
   - **Carteira:** Onde o utilizador poderá ver o seu progresso, nível, conquistas e gere a carteira de ações.
