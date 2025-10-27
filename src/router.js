@@ -1,14 +1,18 @@
-import { createWebHistory, createRouter } from 'vue-router'
+import { createRouter, createWebHistory } from "vue-router";
 
-import Test from './components/Test.vue'
-import HelloWorld from './components/HelloWorld.vue'
+import Home from "./components/Home.vue";
+import Wallet from "./components/Wallet.vue";
+import Dashboard from "./components/Dashboard.vue";
+import Market from "./components/Market.vue";
 
 const routes = [
-  { path: '/', component: HelloWorld },
-  { path: '/test', component: Test },
-]
+  { path: "/", component: Home },
+  { path: "/wallet", component: Wallet },
+  { path: "/dashboard", component: Dashboard },
+  { path: "/market", component: Market },
+];
 
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-})
+});
