@@ -40,13 +40,3 @@
 - Documentação (README.md)
 - (Bónus) Assistente virtual/Bot com funcionalidades básicas
 
-### Avaliação
-
-| Componente | Peso |
-| --- | --- |
-| Qualidade do código (componentização, Pinia, convenções, etc.) | 45% |
-| Gamificação (funcionalidade e criatividade) | 20% |
-| Requisitos técnicos cumpridos | 15% |
-| Testes (cobertura e qualidade) | 10% |
-| UX/UI e Acessibilidade | 10% |
-| BÓNUS - Assistente virtual/Bot | Até 2 valores |
