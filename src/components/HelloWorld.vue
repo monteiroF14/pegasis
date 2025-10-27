@@ -6,6 +6,7 @@ defineProps({
 })
 
 const count = ref(0)
+console.log("inside home")
 </script>
 
 <template>
