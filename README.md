@@ -1,3 +1,28 @@
+## Execução
+
+É utilizado bun mas pode ser qualquer runtime de JavaScript (npm e deno)
+
+#### 1. 
+
+```bash
+bun install
+```
+
+#### 2. 
+
+```bash
+cp .env.example .env
+```
+
+#### 3. 
+
+```bash
+bun serve:db
+bun dev
+```
+
+## Engenharia de requisitos
+
 ### Requisitos técnicos
 - **Vue 3 + Vite** como base do projeto
 - **Vue Router** com mínimo de 4 rotas distintas

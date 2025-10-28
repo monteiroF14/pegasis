@@ -1,3 +1,7 @@
+<script setup>
+import { isAuthenticated, loginWithGitHub, logout } from "../../login.js";
+</script>
+
 <template>
   <header class="w-4/5 mx-auto mt-4">
     <nav class="bg-white border-gray-200 dark:bg-gray-800">
@@ -9,19 +13,6 @@
         >
           𝖕𝖊𝖌𝖆𝖘𝖎𝖘
         </router-link>
-
-        <div class="flex items-center order-2">
-          <a
-            href="#"
-            class="text-gray-800 dark:text-white hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-800"
-          ></a>
-          <a
-            href="#"
-            class="text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800"
-          >
-            Get started
-          </a>
-        </div>
 
         <div class="justify-between items-center w-full flex order-1" id="mobile-menu-2">
           <ul class="flex mx-auto font-medium flex-row space-x-8 mt-0">
@@ -53,9 +44,12 @@
               </router-link>
             </li>
           </ul>
+            <div class="flex items-center order-2">
+                <button v-if="!isAuthenticated()" @click="loginWithGitHub" class="cursor-pointer text-black bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800">Login with GitHub</button>
+                <button v-if="isAuthenticated()" @click="logout" class="cursor-pointer text-white bg-violet-700 hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:bg-violet-600 dark:hover:bg-violet-700 focus:outline-none dark:focus:ring-violet-800">Logout</button>
+            </div>
         </div>
       </div>
     </nav>
   </header>
 </template>
-<script></script>
