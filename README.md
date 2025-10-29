@@ -2,22 +2,22 @@
 
 É utilizado bun mas pode ser qualquer runtime de JavaScript (npm e deno)
 
-#### 1. 
+#### 1. Instalar dependências 
 
 ```bash
 bun install
 ```
 
-#### 2. 
+#### 2. Configurar variáveis de ambiente
 
 ```bash
 cp .env.example .env
 ```
 
-#### 3. 
+#### 3. Levantar a db e correr o projeto 
 
 ```bash
-bun serve:db
+bun db:serve
 bun dev
 ```
 
