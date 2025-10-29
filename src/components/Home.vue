@@ -1,18 +1,36 @@
 <script setup>
 import { ShieldCheck, BarChart3, Wallet, Zap, ArrowRight } from 'lucide-vue-next';
+import Header from "./layout/Header.vue"
+import { isAuthenticated, loginWithGitHub, logout } from "../login.js";
 </script>
 
 <template>
   <div class="bg-white text-gray-800">
-    <!-- Custom Header -->
-    <header class="container mx-auto px-4 py-6 flex justify-between items-center">
-      <h1 class="text-2xl font-bold ">Pegasis</h1>
-      <router-link to="/dashboard" class="text-gray-600 hover:text-violet-700 font-semibold">
-        Sign In
-      </router-link>
-    </header>
+    <Header v-if="isAuthenticated()" />
+  <header v-if="!isAuthenticated()"  class="w-4/5 mx-auto mt-4">
+    <nav class="bg-white border-gray-200 dark:bg-gray-800">
+      <div class="flex justify-between items-center mx-auto">
+        <router-link
+          to="/"
+          class="mx-auto text-black rounded font-bold text-3xl tracking-widest bg-transparent text-primary-700 p-0 dark:text-white"
+          aria-current="page"
+        >
+          𝖕𝖊𝖌𝖆𝖘𝖎𝖘
+        </router-link>
 
-    <!-- Hero Section -->
+        <div class="justify-between items-center w-full flex order-1" id="mobile-menu-2">
+          <ul class="flex mx-auto font-medium flex-row space-x-8 mt-0">
+              <h3>idk</h3>
+          </ul>
+            <div class="flex items-center order-2">
+                <button v-if="!isAuthenticated()" @click="loginWithGitHub" class="cursor-pointer text-black bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800">Login with GitHub</button>
+                <button v-if="isAuthenticated()" @click="logout" class="cursor-pointer text-white bg-violet-700 hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:bg-violet-600 dark:hover:bg-violet-700 focus:outline-none dark:focus:ring-violet-800">Logout</button>
+            </div>
+        </div>
+      </div>
+    </nav>
+  </header>
+
     <div class="container mx-auto px-4 pt-16 pb-24 text-center">
       <h1 class="text-6xl font-extrabold mb-4 leading-tight">The Future of Finance is Here</h1>
       <p class="text-xl text-gray-600 mb-10 max-w-3xl mx-auto">Manage your crypto and fiat in one seamless, secure, and powerful app. Welcome to the new era of digital banking.</p>
@@ -22,7 +40,6 @@ import { ShieldCheck, BarChart3, Wallet, Zap, ArrowRight } from 'lucide-vue-next
       </router-link>
     </div>
 
-    <!-- Features Section -->
     <div class="bg-gray-50 py-20">
       <div class="container mx-auto px-4">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
@@ -51,7 +68,6 @@ import { ShieldCheck, BarChart3, Wallet, Zap, ArrowRight } from 'lucide-vue-next
       </div>
     </div>
 
-    <!-- How It Works Section -->
     <div class="py-20">
         <div class="container mx-auto px-4">
             <h2 class="text-4xl font-bold text-center mb-12">Get Started in 3 Easy Steps</h2>
@@ -75,7 +91,6 @@ import { ShieldCheck, BarChart3, Wallet, Zap, ArrowRight } from 'lucide-vue-next
         </div>
     </div>
 
-    <!-- Call to Action Section -->
     <div class="bg-gray-50">
       <div class="container mx-auto px-4 py-20 text-center">
         <h2 class="text-4xl font-bold mb-4">Ready to Take Control?</h2>
@@ -86,7 +101,6 @@ import { ShieldCheck, BarChart3, Wallet, Zap, ArrowRight } from 'lucide-vue-next
       </div>
     </div>
 
-    <!-- Footer -->
     <footer class="bg-white py-8">
         <div class="container mx-auto px-4 text-center text-gray-500">
             <p>&copy; 2025 Pegasis. All rights reserved.</p>
