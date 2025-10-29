@@ -1,6 +1,7 @@
 <script setup>
 import { ShieldCheck, BarChart3, Wallet, Zap, ArrowRight } from 'lucide-vue-next';
 import Header from "./layout/Header.vue"
+import Dashboard from "./Dashboard.vue"
 import { isAuthenticated, loginWithGitHub, logout } from "../login.js";
 </script>
 
@@ -31,6 +32,8 @@ import { isAuthenticated, loginWithGitHub, logout } from "../login.js";
     </nav>
   </header>
 
+  <Dashboard v-if="isAuthenticated()" />
+  <main v-if="!isAuthenticated()">
     <div class="container mx-auto px-4 pt-16 pb-24 text-center">
       <h1 class="text-6xl font-extrabold mb-4 leading-tight">The Future of Finance is Here</h1>
       <p class="text-xl text-gray-600 mb-10 max-w-3xl mx-auto">Manage your crypto and fiat in one seamless, secure, and powerful app. Welcome to the new era of digital banking.</p>
@@ -100,8 +103,9 @@ import { isAuthenticated, loginWithGitHub, logout } from "../login.js";
         </router-link>
       </div>
     </div>
+    </main>
 
-    <footer class="bg-white py-8">
+    <footer class="bg-white py-8 absolute bottom-0 left-0 right-0">
         <div class="container mx-auto px-4 text-center text-gray-500">
             <p>&copy; 2025 Pegasis. All rights reserved.</p>
             <div class="flex justify-center space-x-6 mt-4">

@@ -22,7 +22,7 @@ import { isAuthenticated, loginWithGitHub, logout } from "../../login.js";
                 exact-active-class="text-violet-700 dark:text-violet-400 font-semibold after:w-full"
                 class="relative block py-2 pr-4 pl-3 text-zinc-800 hover:text-violet-700 dark:text-zinc-400 dark:hover:text-violet-400 after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-0 after:h-[2px] after:bg-violet-700 dark:after:bg-violet-400 after:transition-all after:duration-300 hover:after:w-full"
               >
-                Dashboard
+               Dashboard 
               </router-link>
             </li>
             <li>
