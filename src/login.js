@@ -28,9 +28,13 @@ export function isAuthenticated() {
 }
 
 export function loginWithGitHub() {
+  const redirect_uri = import.meta.env.PROD
+    ? "https://ppegasis.netlify.app/auth/callback"
+    : "http://localhost:5173/auth/callback";
+
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
-    redirect_uri: "http://localhost:5173/auth/callback",
+    redirect_uri,
     scope: "read:user,user:email",
   });
 
