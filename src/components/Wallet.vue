@@ -90,7 +90,9 @@ const confirmSell = () => {
       </div>
 
       <!-- BUY FORM -->
-      <div v-if="showBuyForm" class="bg-white rounded-2xl shadow-sm p-6 mt-8">
+      <!-- fetch the stocks, how much of it, how many XP the user will get -->
+      <!-- show some user data also, like github picture or smth -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 mt-8">
         <h2 class="font-bold text-lg mb-4">Register Buy</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input v-model="buyForm.symbol" placeholder="Symbol" class="input" />
