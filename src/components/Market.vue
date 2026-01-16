@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { Search, TrendingUp, TrendingDown, Star } from 'lucide-vue-next'
+import { upsertMarket } from '../api/db.js'
 
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY
 
@@ -24,16 +25,32 @@ const fetchStocks = async () => {
             fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${API_KEY}`)
           ])
 
+          if (!quoteRes.ok || !profileRes.ok) {
+            throw new Error(`API error: ${quoteRes.status} / ${profileRes.status}`)
+          }
+
           const quote = await quoteRes.json()
           const profile = await profileRes.json()
 
-          return {
+          // Finnhub sometimes returns empty/null fields even on 200 OK
+          if (!quote || quote.c === undefined || quote.c === null) {
+            throw new Error(`Invalid data for ${symbol}`)
+          }
+
+          const stockData = {
+            id: symbol,
             symbol,
             description: profile.name || symbol,
             price: quote.c,
             change: quote.dp,
-            logo: profile.logo || `https://logo.clearbit.com/${profile.weburl?.replace('https://','').replace('http://','')}`
+            logo: profile.logo || `https://logo.clearbit.com/${profile.weburl?.replace('https://','').replace('http://','')}`,
+            ...quote,
+            ...profile
           }
+          
+          upsertMarket(stockData).catch(err => console.error('DB Save Error', symbol, err))
+
+          return stockData
         } catch {
           return { symbol, description: symbol, price: null, change: null, logo: null }
         }

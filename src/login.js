@@ -58,6 +58,12 @@ export async function exchangeCodeForToken(code) {
       code,
     }),
   });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Auth Worker Error: ${res.status} ${errorText}`);
+  }
+
   const authToken = await res.json();
   auth.accessToken = authToken.access_token;
   return authToken;
