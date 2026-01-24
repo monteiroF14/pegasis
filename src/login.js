@@ -69,6 +69,20 @@ export async function exchangeCodeForToken(code) {
   return authToken;
 }
 
+export async function fetchGithubUser(token) {
+  const res = await fetch("https://api.github.com/user", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`GitHub User API Error: ${res.status}`);
+  }
+
+  return await res.json();
+}
+
 export function logout() {
   auth.accessToken = null;
   localStorage.removeItem("accessToken");

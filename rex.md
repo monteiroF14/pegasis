@@ -28,9 +28,6 @@ Este documento detalha os requisitos funcionais e não funcionais para o projeto
 ### RF06: Carteira
 - A aplicação deve permitir que os utilizadores acompanhem os seus ativos financeiros (ex: portfólio simulado, participações em criptomoedas).
 
-### RF07: Assistente Virtual (Bónus)
-- Um bot interativo deve fornecer dicas, motivação ou orientação ao utilizador.
-
 ## Requisitos Não Funcionais
 
 ### RNF01: Desempenho

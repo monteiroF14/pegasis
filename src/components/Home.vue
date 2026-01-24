@@ -9,7 +9,7 @@ import { isAuthenticated, loginWithGitHub, logout } from "../login.js";
   <div class="bg-gray-50 text-gray-800">
     <Header v-if="isAuthenticated()" />
     <header v-if="!isAuthenticated()" class="w-4/5 mx-auto mt-4">
-      <nav class="bg-white border-gray-200 dark:bg-gray-800">
+      <nav class="bg-gray-50 border-gray-200 dark:bg-gray-800">
         <div class="flex justify-between items-center mx-auto">
           <router-link to="/"
             class="mx-auto text-black rounded font-bold text-3xl tracking-widest bg-transparent text-primary-700 p-0 dark:text-white"

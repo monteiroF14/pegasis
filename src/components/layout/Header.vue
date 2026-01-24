@@ -1,11 +1,14 @@
 <script setup>
-import { isAuthenticated, loginWithGitHub, logout } from "../../login.js";
+import { useSessionStore } from "@/stores/session";
+import { loginWithGitHub } from "@/login.js";
+
+const session = useSessionStore();
 </script>
 
 <template>
-  <header class="w-4/5 mx-auto mt-4 bg-gray-50">
+  <header class="w-4/5 mx-auto mt-4">
     <nav class="bg-gray-50 border-gray-200 dark:bg-gray-800">
-      <div class="flex justify-between items-center mx-auto">
+      <div class="bg-gray-50 flex justify-between items-center mx-auto">
         <router-link to="/"
           class="mx-auto text-black rounded font-bold text-3xl tracking-widest bg-transparent text-primary-700 p-0 dark:text-gray-50"
           aria-current="page">
@@ -36,11 +39,19 @@ import { isAuthenticated, loginWithGitHub, logout } from "../../login.js";
               </router-link>
             </li>
           </ul>
-          <div class="flex items-center order-2">
-            <button v-if="!isAuthenticated()" @click="loginWithGitHub"
+          <div class="flex items-center gap-4 order-2">
+            <div v-if="session.isAuthenticated && session.user" class="flex items-center gap-2">
+              <img :src="session.user.avatarUrl" alt="User Avatar" class="w-8 h-8 rounded-md border border-gray-300">
+              <div class="flex flex-col leading-4">
+                <span class="text-md font-bold">{{ session.user.name }}</span>
+                <span class="text-sm text-zinc-600">Balance: {{ session.user.balance }}€</span>
+              </div>
+            </div>
+
+            <button v-if="!session.isAuthenticated" @click="loginWithGitHub"
               class="cursor-pointer text-black bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800">Login
               with GitHub</button>
-            <button v-if="isAuthenticated()" @click="logout"
+            <button v-if="session.isAuthenticated" @click="session.logout"
               class="cursor-pointer text-white bg-violet-700 hover:bg-violet-800 focus:ring-4 focus:ring-violet-300 font-medium rounded-lg text-sm px-4 py-2.5 mr-2 dark:bg-violet-600 dark:hover:bg-violet-700 focus:outline-none dark:focus:ring-violet-800">Logout</button>
           </div>
         </div>

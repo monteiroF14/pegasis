@@ -1,10 +1,16 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import Header from "./components/layout/Header.vue";
+import { useSessionStore } from "@/stores/session";
 
 const route = useRoute();
+const session = useSessionStore();
 const showHeader = computed(() => route.path !== '/');
+
+onMounted(() => {
+  session.init();
+});
 </script>
 
 <template>
