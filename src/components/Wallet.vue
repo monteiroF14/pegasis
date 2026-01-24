@@ -1,202 +1,365 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Pie } from 'vue-chartjs'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
-import { Plus, Trash2 } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { useSessionStore } from '../stores/session'
+import { getMarketData } from '../api/db'
+import { Wallet, TrendingUp, History, ArrowUpRight, ArrowDownRight, Briefcase, X, Minus } from 'lucide-vue-next'
 
-ChartJS.register(ArcElement, Tooltip, Legend)
+const sessionStore = useSessionStore()
+const marketData = ref([])
+const loading = ref(true)
 
-// --- STATE ---
-const showBuyForm = ref(false)
-const showSellForm = ref(false)
-const selectedSell = ref(null)
+const selectedAsset = ref(null)
+const sellQuantity = ref(1)
+const isSelling = ref(false)
 
-const buyForm = ref({ symbol: '', name: '', invested: 0, current: 0 })
-const sellForm = ref({ price: 0 })
+const openSellModal = (item) => {
+  selectedAsset.value = item
+  sellQuantity.value = 1
+}
 
-// Ativos atuais
-const holdings = ref([
-  { id: 1, symbol: 'AAPL', name: 'Apple Inc.', invested: 2500, current: 3120 },
-  { id: 2, symbol: 'TSLA', name: 'Tesla Inc.', invested: 1200, current: 1540 }
-])
+const confirmSell = async () => {
+  if (!selectedAsset.value || sellQuantity.value <= 0) return
+  isSelling.value = true
+  try {
+    const livePrice = getLivePrice(selectedAsset.value.stockId) || selectedAsset.value.buyPrice
+    await sessionStore.sellStock(selectedAsset.value, sellQuantity.value, livePrice)
+    selectedAsset.value = null
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    isSelling.value = false
+  }
+}
 
-// Histórico
-const history = ref([])
+const user = computed(() => sessionStore.user)
+const portfolio = computed(() => user.value?.portfolio || [])
+const history = computed(() => [...(user.value?.history || [])].reverse())
 
-// --- COMPUTEDS ---
-const totalCurrent = computed(() =>
-  holdings.value.reduce((sum, s) => sum + s.current, 0)
-)
+const fetchMarket = async () => {
+  try {
+    marketData.value = await getMarketData()
+  } catch (e) {
+    console.error('Failed to fetch market data for wallet', e)
+  } finally {
+    loading.value = false
+  }
+}
 
-const chartData = computed(() => ({
-  labels: holdings.value.map(s => s.symbol),
-  datasets: [{
-    data: holdings.value.map(s => s.current),
-    backgroundColor: ['#7c3aed', '#6366f1', '#a78bfa', '#8b5cf6'],
-    borderWidth: 0
-  }]
-}))
+onMounted(fetchMarket)
 
-// --- ACTIONS ---
-const addBuy = () => {
-  holdings.value.push({
-    id: Date.now(),
-    ...buyForm.value
+const getLivePrice = (symbol) => {
+  const stock = marketData.value.find(s => s.symbol === symbol)
+  return stock ? stock.price : null
+}
+
+const portfolioWithLivePrices = computed(() => {
+  return portfolio.value.map(item => {
+    const livePrice = getLivePrice(item.stockId)
+    const currentValue = livePrice ? livePrice * item.quantity : item.buyPrice * item.quantity
+    const pnl = livePrice ? (livePrice - item.buyPrice) * item.quantity : 0
+    const pnlPercent = livePrice ? ((livePrice - item.buyPrice) / item.buyPrice) * 100 : 0
+    
+    return {
+      ...item,
+      livePrice,
+      currentValue,
+      pnl,
+      pnlPercent
+    }
   })
-  history.value.push({ type: 'BUY', ...buyForm.value, date: new Date() })
-  buyForm.value = { symbol: '', name: '', invested: 0, current: 0 }
-  showBuyForm.value = false
-}
+})
 
-const removeHolding = (id) => {
-  holdings.value = holdings.value.filter(h => h.id !== id)
-}
+const totalPortfolioValue = computed(() => {
+  return portfolioWithLivePrices.value.reduce((acc, item) => acc + item.currentValue, 0)
+})
 
-const openSell = (stock) => {
-  selectedSell.value = stock
-  showSellForm.value = true
-}
+const totalPnl = computed(() => {
+  return portfolioWithLivePrices.value.reduce((acc, item) => acc + item.pnl, 0)
+})
 
-const confirmSell = () => {
-  history.value.push({
-    type: 'SELL',
-    symbol: selectedSell.value.symbol,
-    name: selectedSell.value.name,
-    invested: selectedSell.value.invested,
-    sold: sellForm.value.price,
-    pnl: sellForm.value.price - selectedSell.value.invested,
-    date: new Date()
+const formatDate = (dateStr) => {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   })
-  holdings.value = holdings.value.filter(h => h.id !== selectedSell.value.id)
-  sellForm.value.price = 0
-  showSellForm.value = false
 }
 </script>
 
 <template>
   <div class="bg-gray-50 min-h-screen">
     <div class="w-4/5 mx-auto pt-10 pb-20">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-4xl font-extrabold">Wallet</h1>
-          <p class="text-gray-600 mt-2">Your current holdings and trade history.</p>
-        </div>
-        <button
-          @click="showBuyForm = true"
-          class="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 text-white px-5 py-3 rounded-xl"
-        >
-          <Plus class="w-5 h-5" /> Add Buy
-        </button>
-      </div>
+      <header class="mb-10">
+        <h1 class="text-4xl font-extrabold flex items-center gap-3">
+          <Wallet class="w-10 h-10 text-violet-600" />
+          Wallet
+        </h1>
+        <p class="text-gray-600 mt-2 text-lg">Manage your assets and track your financial journey.</p>
+      </header>
 
-      <!-- BUY FORM -->
-      <!-- fetch the stocks, how much of it, how many XP the user will get -->
-      <!-- show some user data also, like github picture or smth -->
-      <div class="bg-white rounded-2xl shadow-sm p-6 mt-8">
-        <h2 class="font-bold text-lg mb-4">Register Buy</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input v-model="buyForm.symbol" placeholder="Symbol" class="input" />
-          <input v-model="buyForm.name" placeholder="Company" class="input" />
-          <input v-model.number="buyForm.invested" placeholder="Invested $" type="number" class="input" />
-          <input v-model.number="buyForm.current" placeholder="Current Value $" type="number" class="input" />
+      <!-- TOP STATS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 relative overflow-hidden group">
+          <div class="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <Wallet class="w-20 h-20 text-violet-600" />
+          </div>
+          <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Available Balance</p>
+          <p class="text-4xl font-black text-gray-900">${{ user?.balance?.toLocaleString() || '0' }}</p>
+          <div class="mt-4 flex items-center gap-2 text-xs font-bold text-violet-600 bg-violet-50 w-fit px-3 py-1 rounded-full">
+            Ready to invest
+          </div>
         </div>
-        <div class="flex gap-4 mt-4">
-          <button @click="addBuy" class="bg-violet-700 text-white px-5 py-2 rounded-lg">Save</button>
-          <button @click="showBuyForm = false" class="text-gray-500">Cancel</button>
-        </div>
-      </div>
 
-      <!-- TOP -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
-        <div class="bg-white rounded-2xl shadow-sm p-6">
-          <h2 class="font-bold mb-4">Allocation</h2>
-          <Pie :data="chartData" />
-          <p class="text-center text-sm text-gray-500 mt-4">
-            Total value: <span class="font-semibold">${{ totalCurrent.toFixed(2) }}</span>
+        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 relative overflow-hidden group">
+          <div class="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <Briefcase class="w-20 h-20 text-blue-600" />
+          </div>
+          <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Portfolio Value</p>
+          <p class="text-4xl font-black text-gray-900">${{ totalPortfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</p>
+          <div class="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 w-fit px-3 py-1 rounded-full">
+            {{ portfolio.length }} Assets held
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 relative overflow-hidden group">
+          <div class="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <TrendingUp class="w-20 h-20 text-green-600" />
+          </div>
+          <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Total Profit/Loss</p>
+          <p class="text-4xl font-black" :class="totalPnl >= 0 ? 'text-green-600' : 'text-red-600'">
+            {{ totalPnl >= 0 ? '+' : '' }}${{ totalPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
           </p>
+          <div class="mt-4 flex items-center gap-2 text-xs font-bold w-fit px-3 py-1 rounded-full"
+               :class="totalPnl >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'">
+            Overall performance
+          </div>
         </div>
+      </div>
 
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <!-- HOLDINGS -->
-        <div class="bg-white rounded-2xl shadow-sm overflow-hidden lg:col-span-2">
-          <table class="w-full">
-            <thead class="bg-gray-100 text-sm text-gray-600">
-              <tr>
-                <th class="text-left px-6 py-4">Stock</th>
-                <th class="text-right px-6 py-4">Invested</th>
-                <th class="text-right px-6 py-4">Current</th>
-                <th class="text-right px-6 py-4">PNL</th>
-                <th class="text-center px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y">
-              <tr v-for="s in holdings" :key="s.id" class="hover:bg-gray-50">
-                <td class="px-6 py-4 font-medium">{{ s.name }}<span class="block text-sm text-gray-500">{{ s.symbol }}</span></td>
-                <td class="px-6 py-4 text-right">${{ s.invested }}</td>
-                <td class="px-6 py-4 text-right">${{ s.current }}</td>
-                <td
-                  class="px-6 py-4 text-right font-semibold"
-                  :class="s.current - s.invested >= 0 ? 'text-green-600' : 'text-red-600'"
-                >
-                  ${{ (s.current - s.invested).toFixed(2) }}
-                </td>
-                <td class="px-6 py-4 flex justify-center gap-4">
-                  <button @click="openSell(s)" class="text-violet-700">Sell</button>
-                  <button @click="removeHolding(s.id)" class="text-red-600">
-                    <Trash2 class="w-5 h-5" />
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="lg:col-span-2">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <Briefcase class="w-6 h-6 text-gray-400" />
+              Your Assets
+            </h2>
+          </div>
+
+          <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div v-if="loading" class="p-12 text-center text-gray-400">
+              <div class="animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+              Calculating live portfolio values...
+            </div>
+            
+            <div v-else-if="portfolioWithLivePrices.length === 0" class="p-12 text-center">
+              <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Briefcase class="w-8 h-8 text-gray-300" />
+              </div>
+              <p class="text-gray-500 font-medium">No assets yet.</p>
+              <router-link to="/market" class="text-violet-600 font-bold text-sm hover:underline mt-2 inline-block">Visit the market to start trading</router-link>
+            </div>
+
+            <table v-else class="w-full">
+              <thead class="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th class="text-left px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Asset</th>
+                  <th class="text-right px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Quantity</th>
+                  <th class="text-right px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg Price</th>
+                  <th class="text-right px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Current</th>
+                  <th class="text-right px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Profit/Loss</th>
+                  <th class="text-center px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Trade</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50">
+                <tr v-for="item in portfolioWithLivePrices" :key="item.id" class="hover:bg-gray-50 transition-colors">
+                  <td class="px-8 py-5">
+                    <div class="flex items-center gap-4">
+                      <div class="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center text-violet-600 font-black text-xs shadow-sm border border-violet-100">
+                        {{ item.stockId.substring(0, 2) }}
+                      </div>
+                      <div>
+                        <p class="font-black text-gray-900 leading-tight">{{ item.name }}</p>
+                        <p class="text-[10px] text-gray-400 font-black tracking-[0.2em] uppercase">{{ item.stockId }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-8 py-5 text-right font-black text-gray-700">{{ item.quantity }}</td>
+                  <td class="px-8 py-5 text-right font-bold text-gray-400">${{ item.buyPrice.toFixed(2) }}</td>
+                  <td class="px-8 py-5 text-right">
+                    <p class="font-black text-gray-900">${{ (item.livePrice || item.buyPrice).toFixed(2) }}</p>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Value: ${{ item.currentValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</p>
+                  </td>
+                  <td class="px-8 py-5 text-right">
+                    <div class="flex flex-col items-end">
+                      <span class="flex items-center gap-1 font-black text-sm" :class="item.pnl >= 0 ? 'text-green-600' : 'text-red-600'">
+                        <ArrowUpRight v-if="item.pnl >= 0" class="w-3 h-3" />
+                        <ArrowDownRight v-else class="w-3 h-3" />
+                        {{ item.pnlPercent >= 0 ? '+' : '' }}{{ item.pnlPercent.toFixed(2) }}%
+                      </span>
+                      <span class="text-[10px] font-black uppercase tracking-tighter" :class="item.pnl >= 0 ? 'text-green-500/80' : 'text-red-400'">
+                        {{ item.pnl >= 0 ? '+' : '' }}${{ item.pnl.toFixed(2) }}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-8 py-5 text-center">
+                    <button 
+                      @click="openSellModal(item)"
+                      class="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 border border-red-100"
+                    >
+                      Sell
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TRANSACTION HISTORY -->
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2 px-2">
+            <History class="w-6 h-6 text-gray-400" />
+            History
+          </h2>
+          <div class="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
+            <div v-if="history.length === 0" class="p-12 text-center text-gray-400">
+              <p class="text-sm font-bold uppercase tracking-widest">No activity yet</p>
+            </div>
+            <div v-else class="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
+              <div v-for="tx in history" :key="tx.id" class="p-6 hover:bg-gray-50 transition-colors">
+                <div class="flex justify-between items-start mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+                         :class="tx.type === 'BUY' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'">
+                      <ArrowUpRight v-if="tx.type === 'BUY'" class="w-5 h-5" />
+                      <ArrowDownRight v-else class="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p class="text-sm font-black text-gray-900 leading-tight">{{ tx.type }} {{ tx.stockId }}</p>
+                      <p class="text-[10px] text-gray-400 font-black uppercase tracking-tighter">{{ formatDate(tx.date) }}</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-sm font-black text-gray-900 leading-tight">${{ tx.totalValue.toLocaleString() }}</p>
+                    <p class="text-[10px] text-gray-400 font-black uppercase tracking-tighter">{{ tx.quantity }} units</p>
+                  </div>
+                </div>
+                <div v-if="tx.pnl !== undefined" class="flex items-center justify-end gap-1.5 pt-2 border-t border-gray-50 mt-1">
+                   <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Realized PNL</span>
+                   <span class="text-xs font-black px-2 py-0.5 rounded-md" :class="tx.pnl >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'">
+                      {{ tx.pnl >= 0 ? '+' : '' }}${{ tx.pnl.toFixed(2) }}
+                   </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- SELL FORM -->
-      <div v-if="showSellForm" class="bg-white rounded-2xl shadow-sm p-6 mt-10">
-        <h2 class="font-bold mb-4">Sell {{ selectedSell.symbol }}</h2>
-        <input
-          v-model.number="sellForm.price"
-          type="number"
-          placeholder="Sell value $"
-          class="input mb-4"
-        />
-        <div class="flex gap-4">
-          <button @click="confirmSell" class="bg-red-600 text-white px-5 py-2 rounded-lg">Confirm Sell</button>
-          <button @click="showSellForm = false" class="text-gray-500">Cancel</button>
-        </div>
-      </div>
+    <!-- SELL MODAL -->
+    <div v-if="selectedAsset" class="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in duration-200">
+        <div class="p-8">
+          <div class="flex justify-between items-start mb-8">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-red-600 font-black text-sm shadow-sm border border-red-100">
+                {{ selectedAsset.stockId.substring(0, 2) }}
+              </div>
+              <div>
+                <h3 class="text-2xl font-black text-gray-900 leading-tight">Sell {{ selectedAsset.name }}</h3>
+                <p class="text-xs text-red-500 font-black uppercase tracking-[0.2em]">{{ selectedAsset.stockId }}</p>
+              </div>
+            </div>
+            <button @click="selectedAsset = null" class="bg-gray-50 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
 
-      <!-- HISTORY -->
-      <div class="bg-white rounded-2xl shadow-sm mt-12 overflow-hidden">
-        <h2 class="font-bold text-lg px-6 py-4">Trade History</h2>
-        <table class="w-full">
-          <thead class="bg-gray-100 text-sm text-gray-600">
-            <tr>
-              <th class="px-6 py-3 text-left">Type</th>
-              <th class="px-6 py-3 text-left">Stock</th>
-              <th class="px-6 py-3 text-right">Value</th>
-              <th class="px-6 py-3 text-right">PNL</th>
-              <th class="px-6 py-3 text-right">Date</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y">
-            <tr v-for="(h, i) in history" :key="i">
-              <td class="px-6 py-3 font-medium">{{ h.type }}</td>
-              <td class="px-6 py-3">{{ h.symbol }}</td>
-              <td class="px-6 py-3 text-right">${{ h.type === 'BUY' ? h.invested : h.sold }}</td>
-              <td
-                class="px-6 py-3 text-right"
-                :class="h.pnl >= 0 ? 'text-green-600' : 'text-red-600'"
+          <div class="space-y-8">
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Market Price</p>
+                <p class="text-xl font-black text-gray-900">${{ (getLivePrice(selectedAsset.stockId) || selectedAsset.buyPrice).toFixed(2) }}</p>
+              </div>
+              <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Available</p>
+                <p class="text-xl font-black text-gray-900">{{ selectedAsset.quantity }} <span class="text-xs text-gray-400">units</span></p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Quantity to sell</label>
+              <div class="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100">
+                <button 
+                  @click="sellQuantity = Math.max(1, sellQuantity - 1)"
+                  class="w-12 h-12 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center font-black text-gray-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all"
+                >-</button>
+                <input 
+                  v-model.number="sellQuantity" 
+                  type="number" 
+                  min="1"
+                  :max="selectedAsset.quantity"
+                  class="flex-1 bg-transparent border-none text-center font-black text-2xl text-gray-900 focus:ring-0" 
+                />
+                <button 
+                  @click="sellQuantity = Math.min(selectedAsset.quantity, sellQuantity + 1)"
+                  class="w-12 h-12 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center font-black text-gray-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all"
+                >+</button>
+              </div>
+              <button 
+                @click="sellQuantity = selectedAsset.quantity"
+                class="w-full mt-3 text-[10px] font-black text-violet-600 uppercase tracking-widest hover:text-violet-700 transition-colors"
+              >Sell Maximum Units</button>
+            </div>
+
+            <div class="pt-2">
+              <div class="space-y-3 mb-6 px-1">
+                <div class="flex justify-between items-center">
+                  <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Revenue</span>
+                  <span class="text-xl font-black text-gray-900">${{ ((getLivePrice(selectedAsset.stockId) || selectedAsset.buyPrice) * sellQuantity).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Realized PNL</span>
+                  <span class="text-lg font-black" :class="((getLivePrice(selectedAsset.stockId) || selectedAsset.buyPrice) - selectedAsset.buyPrice) >= 0 ? 'text-green-600' : 'text-red-600'">
+                    {{ ((getLivePrice(selectedAsset.stockId) || selectedAsset.buyPrice) - selectedAsset.buyPrice) >= 0 ? '+' : '' }}${{ (((getLivePrice(selectedAsset.stockId) || selectedAsset.buyPrice) - selectedAsset.buyPrice) * sellQuantity).toFixed(2) }}
+                  </span>
+                </div>
+              </div>
+
+              <button 
+                @click="confirmSell"
+                :disabled="isSelling || sellQuantity > selectedAsset.quantity || sellQuantity <= 0"
+                class="w-full bg-red-600 text-white py-5 rounded-[20px] font-black text-lg shadow-xl shadow-red-100 hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none transition-all active:scale-[0.98] mb-4"
               >
-                {{ h.pnl ? `$${h.pnl.toFixed(2)}` : '—' }}
-              </td>
-              <td class="px-6 py-3 text-right text-gray-500">
-                {{ new Date(h.date).toLocaleDateString() }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                {{ isSelling ? 'Processing...' : 'Confirm Sale' }}
+              </button>
+              <div class="flex items-center justify-center gap-2">
+                <TrendingUp class="w-3 h-3 text-green-500" />
+                <p class="text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">+40 XP REWARD ON SUCCESS</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+</style>

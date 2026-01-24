@@ -237,39 +237,147 @@ export async function upsertMarket(market) {
 
 /**
 
- * Safe version of getUserById that returns null if user is not found.
+
 
  * @param {string} id
 
+
+
  * @returns {Promise<User|null>}
+
+
 
  */
 
+
+
 export async function findUser(id) {
+
+
 
     try {
 
+
+
         return await getUserById(id);
+
+
 
     } catch (error) {
 
+
+
         // Return null if 404 (Not Found)
+
+
 
         if (error.message && (error.message.includes('404') || error.message.includes('Not Found'))) {
 
+
+
             return null;
+
+
 
         }
 
+
+
         throw error;
 
+
+
     }
+
+
 
 }
 
 
 
+
+
+
+
 /**
+
+
+
+ * Updates user fields (PATCH).
+
+
+
+ * @param {string} id 
+
+
+
+ * @param {Partial<User>} updates 
+
+
+
+ * @returns {Promise<User>}
+
+
+
+ */
+
+
+
+export async function updateUser(id, updates) {
+
+
+
+    if (!id) {
+
+
+
+        throw new ValidationError("User ID is required for update.");
+
+
+
+    }
+
+
+
+    
+
+
+
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+
+
+
+        method: "PATCH",
+
+
+
+        headers: { "Content-Type": "application/json" },
+
+
+
+        body: JSON.stringify(updates),
+
+
+
+    });
+
+
+
+    return handleResponse(response);
+
+
+
+}
+
+
+
+
+
+
+
+/**
+
+
 
  * Creates a new user with default initial state.
 
