@@ -9,9 +9,7 @@ import { useToastStore } from './toast'
 
 export const useSessionStore = defineStore('session', () => {
   const toast = useToastStore()
-  /** @type {import('vue').Ref<User | null>} */
   const user = ref(null)
-  /** @type {import('vue').Ref<Badge[]>} */
   const badges = ref([])
   const loading = ref(false)
   const error = ref(null)
@@ -19,18 +17,35 @@ export const useSessionStore = defineStore('session', () => {
   const isAuthenticated = computed(() => !!user.value)
 
   /**
-   * Calculates the current XP multiplier based on owned badges
+   * The multiplier is 1.0 for the first badge, and adds 0.05 for each additional badge.
+   * Logic: 1.0 + (number_of_badges - 1) * 0.05
    */
   const activeMultiplier = computed(() => {
-    if (!user.value || !user.value.badgeIds || user.value.badgeIds.length === 0 || badges.value.length === 0) return 1.0
-    const ownedBadges = badges.value.filter(b => user.value.badgeIds.includes(b.id))
-    if (ownedBadges.length === 0) return 1.0
-    return Math.max(...ownedBadges.map(b => b.multiplier))
+    if (!user.value || !user.value.badgeIds || user.value.badgeIds.length === 0) return 1.0
+    return 1.0 + (user.value.badgeIds.length - 1) * 0.05
+  })
+
+  /**
+   * The current badge is the LATEST one added to the user's badgeIds array
+   */
+  const currentBadge = computed(() => {
+    if (!user.value || !user.value.badgeIds || user.value.badgeIds.length === 0 || badges.value.length === 0) {
+      return { id: 0, description: 'Novice Investor' }
+    }
+    
+    // Get the ID of the last element in the badgeIds array
+    const latestBadgeId = user.value.badgeIds[user.value.badgeIds.length - 1]
+    
+    // Find that badge in the global metadata list
+    const badgeMatch = badges.value.find(b => Number(b.id) === Number(latestBadgeId))
+    
+    return badgeMatch || { id: latestBadgeId, description: 'New Rank' }
   })
 
   async function fetchAllBadges() {
     try {
-      badges.value = await getBadges()
+      const data = await getBadges()
+      badges.value = Array.isArray(data) ? data : []
     } catch (e) {
       console.error('Failed to fetch badges', e)
     }
@@ -38,7 +53,7 @@ export const useSessionStore = defineStore('session', () => {
 
   async function deposit(amount = 300) {
     if (!user.value) return
-    const updates = { balance: user.value.balance + amount }
+    const updates = { balance: (user.value.balance || 0) + amount }
     await applyProgressAndSave(updates, { type: 'DEPOSIT' })
     toast.show(`Successfully deposited $${amount}!`)
   }
@@ -54,18 +69,9 @@ export const useSessionStore = defineStore('session', () => {
     toast.show(`Successfully withdrew $${amount}!`)
   }
 
-  /**
-   * Buys stock based on total currency value
-   * @param {Object} stock 
-   * @param {number} totalValue - Amount in dollars to spend
-   */
   async function buyStock(stock, totalValue) {
     if (!user.value) return
-    if (totalValue <= 0) throw new Error('Amount must be greater than zero')
-    
-    // Fractional quantity
     const quantity = totalValue / stock.price
-    
     const xpGained = Math.floor(50 * activeMultiplier.value)
 
     const portfolio = [...(user.value.portfolio || [])]
@@ -90,21 +96,13 @@ export const useSessionStore = defineStore('session', () => {
       })
     }
 
-    const historyEntry = {
-      id: Date.now(),
-      type: 'BUY',
-      stockId: stock.symbol,
-      name: stock.description,
-      quantity,
-      price: stock.price,
-      totalValue: totalValue,
-      date: new Date().toISOString()
-    }
-
     const updates = {
       portfolio,
-      history: [...(user.value.history || []), historyEntry],
-      xp: user.value.xp + xpGained
+      history: [...(user.value.history || []), {
+        id: Date.now(), type: 'BUY', stockId: stock.symbol, name: stock.description,
+        quantity, price: stock.price, totalValue, date: new Date().toISOString()
+      }],
+      xp: (user.value.xp || 0) + xpGained
     }
 
     await applyProgressAndSave(updates, { type: 'BUY', symbol: stock.symbol, quantity })
@@ -113,123 +111,77 @@ export const useSessionStore = defineStore('session', () => {
 
   async function sellStock(portfolioItem, quantity, currentPrice) {
     if (!user.value) return
-    if (portfolioItem.quantity < quantity) throw new Error('Insufficient quantity')
-
     const revenue = currentPrice * quantity
-    const multiplier = activeMultiplier.value
-    const xpGained = Math.floor(40 * multiplier)
+    const xpGained = Math.floor(40 * activeMultiplier.value)
 
     const portfolio = [...(user.value.portfolio || [])]
     const itemIndex = portfolio.findIndex(p => p.id === portfolioItem.id)
     
-    if (portfolio[itemIndex].quantity === quantity) {
-      portfolio.splice(itemIndex, 1)
-    } else {
-      portfolio[itemIndex].quantity -= quantity
-    }
-
-    const pnl = (currentPrice - portfolioItem.buyPrice) * quantity
-
-    const historyEntry = {
-      id: Date.now(),
-      type: 'SELL',
-      stockId: portfolioItem.stockId,
-      name: portfolioItem.name,
-      quantity,
-      price: currentPrice,
-      totalValue: revenue,
-      pnl,
-      date: new Date().toISOString()
-    }
+    if (portfolio[itemIndex].quantity === quantity) portfolio.splice(itemIndex, 1)
+    else portfolio[itemIndex].quantity -= quantity
 
     const updates = {
-      balance: user.value.balance + revenue,
+      balance: (user.value.balance || 0) + revenue,
       portfolio,
-      history: [...(user.value.history || []), historyEntry],
-      xp: user.value.xp + xpGained
+      history: [...(user.value.history || []), {
+        id: Date.now(), type: 'SELL', stockId: portfolioItem.stockId, name: portfolioItem.name,
+        quantity, price: currentPrice, totalValue: revenue, pnl: (currentPrice - portfolioItem.buyPrice) * quantity,
+        date: new Date().toISOString()
+      }],
+      xp: (user.value.xp || 0) + xpGained
     }
 
-    await applyProgressAndSave(updates, { type: 'SELL', pnl })
+    await applyProgressAndSave(updates, { type: 'SELL' })
     toast.show(`Sold ${quantity.toFixed(4)} units of ${portfolioItem.stockId}. +${xpGained} XP`)
   }
 
-  /**
-   * Internal engine to handle level-ups, goal progress, and badge unlocks
-   */
   async function applyProgressAndSave(updates, event) {
     const activeUser = { ...user.value, ...updates }
     
-    // 1. Update Goal Progress
+    // Goals Logic
     if (activeUser.goals) {
       activeUser.goals = activeUser.goals.map(goal => {
         let newProgress = goal.progress
-
-        if (event.type === 'BUY') {
-          if (goal.type === 'watchlist_buy' && activeUser.watchlist?.includes(event.symbol)) {
-            newProgress += event.quantity
-          } else if (goal.type === 'make_trades') {
-            newProgress += 1
-          }
+        if (event?.type === 'BUY') {
+          if (goal.type === 'watchlist_buy' && activeUser.watchlist?.includes(event.symbol)) newProgress += event.quantity
+          else if (goal.type === 'make_trades') newProgress += 1
         }
-        
-        if (goal.type === 'reach_balance' || event.type === 'DEPOSIT' || event.type === 'WITHDRAW') {
-          newProgress = activeUser.balance
-        }
-
-        if (goal.type === 'diversify') {
-          newProgress = activeUser.portfolio.length
-        }
-
+        if (goal.type === 'reach_balance') newProgress = activeUser.balance
+        if (goal.type === 'diversify') newProgress = activeUser.portfolio.length
         return { ...goal, progress: newProgress }
       })
 
-      // 2. Check for completed goals
-      const completedGoals = activeUser.goals.filter(g => {
-        const targetNumber = g.description.match(/\d+/);
-        const target = targetNumber ? parseInt(targetNumber[0]) : 0;
+      const completed = activeUser.goals.filter(g => {
+        const target = parseInt(g.description.match(/\d+/)?.[0] || '0')
         return g.progress >= target
       })
 
-      if (completedGoals.length > 0) {
-        const totalGoalXp = completedGoals.reduce((sum, g) => sum + g.xp, 0)
-        activeUser.xp += totalGoalXp
-        activeUser.goals = activeUser.goals.filter(g => !completedGoals.includes(g))
-        toast.show(`Challenge Completed! Gained ${totalGoalXp} bonus XP`, 'success')
+      if (completed.length > 0) {
+        const bonus = completed.reduce((sum, g) => sum + g.xp, 0)
+        activeUser.xp += bonus
+        activeUser.goals = activeUser.goals.filter(g => !completed.includes(g))
+        toast.show(`Challenge Completed! +${bonus} XP`)
       }
     }
 
-    // 3. Handle Level Ups
-    const getXPToLevel = (lvl) => Math.floor(1000 * Math.pow(1.1, lvl - 1))
-    const getCumulativeXP = (lvl) => {
-      let total = 0
-      for (let i = 1; i < lvl; i++) total += getXPToLevel(i)
-      return total
-    }
-
+    // Level Logic
+    const getXPForLevel = (lvl) => lvl <= 1 ? 0 : Array.from({length: lvl-1}, (_, i) => Math.floor(1000 * Math.pow(1.1, i))).reduce((a,b)=>a+b, 0)
     const oldLevel = activeUser.level
-    while (activeUser.xp >= getCumulativeXP(activeUser.level + 1)) {
-      activeUser.level++
-    }
-    
-    if (activeUser.level > oldLevel) {
-      toast.show(`Level Up! You are now Level ${activeUser.level}`, 'success')
-    }
+    while (activeUser.xp >= getXPForLevel(activeUser.level + 1)) activeUser.level++
+    if (activeUser.level > oldLevel) toast.show(`Level Up! You are now Level ${activeUser.level}`)
 
-    // 4. Unlock Badges
+    // Badge Milestones Logic
     const badgeMilestones = { 5: 2, 10: 3, 15: 4, 20: 5 }
     if (!activeUser.badgeIds) activeUser.badgeIds = [1]
-    
-    Object.entries(badgeMilestones).forEach(([level, badgeId]) => {
-      const bid = parseInt(badgeId)
-      const targetLevel = parseInt(level)
-      if (activeUser.level >= targetLevel && !activeUser.badgeIds.includes(bid)) {
-        activeUser.badgeIds.push(bid)
-        const badge = badges.value.find(b => b.id === bid)
-        if (badge) {
-          toast.show(`Rank Up! New Badge: ${badge.description}!`, 'success')
-        }
+    Object.entries(badgeMilestones).forEach(([lvl, bid]) => {
+      const milestoneLevel = Number(lvl)
+      const badgeId = Number(bid)
+      if (activeUser.level >= milestoneLevel && !activeUser.badgeIds.some(id => Number(id) === badgeId)) {
+        activeUser.badgeIds.push(badgeId)
+        const b = badges.value.find(x => Number(x.id) === badgeId)
+        if (b) toast.show(`Rank Up: ${b.description}!`)
       }
-    });
+    })
 
     await updateUser(user.value.id, activeUser)
     await refreshUser()
@@ -237,90 +189,41 @@ export const useSessionStore = defineStore('session', () => {
 
   async function login(token) {
     loading.value = true
-    error.value = null
     try {
-      const githubProfile = await fetchGithubUser(token)
-      const userId = String(githubProfile.id)
-      let dbUser = await findUser(userId)
-      if (!dbUser) {
-        dbUser = await createUser({
-          id: userId,
-          name: githubProfile.name || githubProfile.login,
-          avatarUrl: githubProfile.avatar_url
-        })
-      }
+      const profile = await fetchGithubUser(token)
+      const dbUser = await findUser(String(profile.id)) || await createUser({ id: profile.id, name: profile.name || profile.login, avatarUrl: profile.avatar_url })
       user.value = dbUser
       await fetchAllBadges()
-      if (!user.value.badgeIds || user.value.badgeIds.length === 0) {
-        await updateUser(user.value.id, { badgeIds: [1] })
-        await refreshUser()
-      }
+      if (!user.value.badgeIds?.length) await applyProgressAndSave({ badgeIds: [1] })
       return dbUser
-    } catch (e) {
-      error.value = e.message
-      throw e
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function logout() {
-    user.value = null
-    githubLogout()
+    } catch (e) { error.value = e.message; throw e }
+    finally { loading.value = false }
   }
 
   async function init() {
     const token = localStorage.getItem('accessToken')
-    if (token) {
-      try {
-        await login(token)
-      } catch (e) {
-        logout()
-      }
-    } else {
-      await fetchAllBadges()
-    }
+    await fetchAllBadges()
+    if (token) { try { await login(token) } catch (e) { logout() } }
   }
+
+  function logout() { user.value = null; githubLogout() }
 
   async function refreshUser() {
-    if (!user.value) return
-    try {
-      const updatedUser = await findUser(user.value.id)
-      if (updatedUser) user.value = updatedUser
-    } catch (e) {
-      console.error('Failed to refresh user:', e)
+    if (user.value) {
+      const u = await findUser(user.value.id)
+      if (u) user.value = u
     }
   }
 
-  async function toggleWatchlist(stockId) {
+  async function toggleWatchlist(id) {
     if (!user.value) return
-    const currentWatchlist = [...(user.value.watchlist || [])]
-    const index = currentWatchlist.indexOf(stockId)
-    if (index === -1) currentWatchlist.push(stockId)
-    else currentWatchlist.splice(index, 1)
-    user.value.watchlist = currentWatchlist
-    try {
-      await updateUser(user.value.id, { watchlist: currentWatchlist })
-    } catch (e) {
-      await refreshUser() 
-    }
+    const list = user.value.watchlist?.includes(id) ? user.value.watchlist.filter(x => x !== id) : [...(user.value.watchlist || []), id]
+    await updateUser(user.value.id, { watchlist: list })
+    await refreshUser()
   }
 
   return {
-    user,
-    badges,
-    loading,
-    error,
-    isAuthenticated,
-    activeMultiplier,
-    login,
-    logout,
-    refreshUser,
-    init,
-    toggleWatchlist,
-    buyStock,
-    sellStock,
-    deposit,
-    withdraw
+    user, badges, loading, error, isAuthenticated, activeMultiplier, currentBadge,
+    login, logout, refreshUser, init, toggleWatchlist, buyStock, sellStock, deposit, withdraw, fetchAllBadges
   }
 })

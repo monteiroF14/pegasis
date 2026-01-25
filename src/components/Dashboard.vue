@@ -1,11 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useSessionStore } from '../stores/session'
-import { getBadges, updateUser } from '../api/db'
+import { updateUser } from '../api/db'
 import { LayoutDashboard } from 'lucide-vue-next'
 
 const sessionStore = useSessionStore()
-const badges = ref([])
 const user = computed(() => sessionStore.user)
 
 // ---- GOAL CREATION ----
@@ -32,8 +31,7 @@ const calculatedXP = computed(() => {
 const createGoal = async () => {
   if (!user.value) return
   errorMessage.value = ''
-  
-  // Validation
+
   if (goalAction.value === 'reach_balance' && goalTarget.value <= user.value.balance) {
     errorMessage.value = `Target balance must be higher than your current balance ($${user.value.balance.toFixed(2)})`
     return
@@ -54,84 +52,44 @@ const createGoal = async () => {
     type: goalAction.value,
     description: `${template.label} ${goalTarget.value} ${template.unit}`,
     xp: calculatedXP.value,
-    progress: goalAction.value === 'reach_balance' ? user.value.balance : 
-              (goalAction.value === 'diversify' ? user.value.portfolio.length : 0)
+    progress: goalAction.value === 'reach_balance' ? user.value.balance :
+      (goalAction.value === 'diversify' ? user.value.portfolio.length : 0)
   }
-  
+
   const updatedGoals = [...(user.value.goals || []), newGoal]
-  
+
   try {
     await updateUser(user.value.id, { goals: updatedGoals })
     await sessionStore.refreshUser()
-    goalTarget.value = 5 // reset
+    goalTarget.value = 5
   } catch (e) {
-    console.error('Failed to create goal', e)
-    errorMessage.value = "Failed to save goal. Please try again."
+    errorMessage.value = "Failed to save goal."
   }
 }
 
 onMounted(async () => {
-  try {
-    // Ensure we have fresh user data (and goals) from DB
-    await sessionStore.refreshUser()
-    badges.value = await getBadges()
-  } catch (e) {
-    console.error('Failed to fetch dashboard data', e)
-  }
+  await sessionStore.refreshUser()
+  if (sessionStore.badges.length === 0) await sessionStore.fetchAllBadges()
 })
 
-const currentBadge = computed(() => {
-  if (!user.value || !user.value.badgeIds || user.value.badgeIds.length === 0) return null
-  const ownedBadges = badges.value.filter(b => user.value.badgeIds.includes(b.id))
-  if (ownedBadges.length === 0) return null
-  return ownedBadges.sort((a, b) => b.multiplier - a.multiplier)[0]
-})
+const getXPForLevel = (lvl) => lvl <= 1 ? 0 : Array.from({ length: lvl - 1 }, (_, i) => Math.floor(1000 * Math.pow(1.1, i))).reduce((a, b) => a + b, 0)
 
-const activeMultiplier = computed(() => {
-  return currentBadge.value ? currentBadge.value.multiplier : 1.0
-})
-
-/**
- * Calculates the total XP required to reach a specific level
- * Formula: 1000 * (1.1 ^ (level - 1))
- */
-const getXPForLevel = (level) => {
-  if (level <= 1) return 0
-  // Cumulative XP needed to reach 'level'
-  let total = 0
-  for (let i = 1; i < level; i++) {
-    total += Math.floor(1000 * Math.pow(1.1, i - 1))
-  }
-  return total
-}
-
-const xpRequiredForCurrentLevel = computed(() => getXPForLevel(user.value?.level || 1))
-const xpRequiredForNextLevel = computed(() => getXPForLevel((user.value?.level || 1) + 1))
-
-const xpInCurrentLevel = computed(() => (user.value?.xp || 0) - xpRequiredForCurrentLevel.value)
-const xpNeededForNextLevel = computed(() => xpRequiredForNextLevel.value - xpRequiredForCurrentLevel.value)
-
-const xpProgress = computed(() => {
-  if (!user.value || xpNeededForNextLevel.value === 0) return 0
-  return Math.min(100, (xpInCurrentLevel.value / xpNeededForNextLevel.value) * 100)
-})
+const xpInCurrentLevel = computed(() => (user.value?.xp || 0) - getXPForLevel(user.value?.level || 1))
+const xpNeededForNextLevel = computed(() => getXPForLevel((user.value?.level || 1) + 1) - getXPForLevel(user.value?.level || 1))
+const xpProgress = computed(() => xpNeededForNextLevel.value === 0 ? 0 : Math.min(100, (xpInCurrentLevel.value / xpNeededForNextLevel.value) * 100))
 
 const greeting = computed(() => {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
+  const h = new Date().getHours()
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 })
 
 const rankTitle = computed(() => {
-  if (!user.value) return 'Trader'
-  const level = user.value.level
-  if (level < 5) return 'Intern Trader'
-  if (level < 10) return 'Junior Analyst'
-  if (level < 20) return 'Senior Analyst'
-  if (level < 35) return 'Portfolio Manager'
-  if (level < 50) return 'Market Guru'
-  return 'Market Legend'
+  const l = user.value?.level || 1
+  if (l < 5) return 'Intern Trader'
+  if (l < 10) return 'Junior Analyst'
+  if (l < 20) return 'Senior Analyst'
+  if (l < 35) return 'Portfolio Manager'
+  return 'Market Guru'
 })
 </script>
 
@@ -142,109 +100,112 @@ const rankTitle = computed(() => {
         <LayoutDashboard class="w-10 h-10 text-violet-600" />
         Hub
       </h1>
-      <p class="text-gray-600 mt-2">Level up your trading career.</p>
+      <p class="text-gray-600 mt-2 text-lg font-medium">Level up your trading career.</p>
 
-      <!-- USER PROFILE INFO -->
       <div v-if="user"
-        class="mt-8 bg-white rounded-2xl p-6 shadow-sm border border-violet-100 flex flex-col md:flex-row items-center gap-8">
+        class="mt-8 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-10">
         <div class="relative">
-          <img :src="user.avatarUrl" class="w-20 h-20 rounded-full border-4 border-violet-500 shadow-sm" />
+          <img :src="user.avatarUrl" class="w-24 h-24 rounded-full border-4 border-violet-500 shadow-xl" />
           <div
-            class="absolute -bottom-2 -right-2 bg-violet-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm">
+            class="absolute -bottom-2 -right-2 bg-violet-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg border-2 border-white">
             LVL {{ user.level }}
           </div>
         </div>
 
         <div class="flex-1 w-full">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 class="text-2xl font-bold text-gray-800">{{ greeting }}, <span class="text-violet-600">{{ rankTitle }}</span></h2>
-              <p class="text-sm text-gray-500">Keep trading to earn more XP and unlock badges!</p>
+              <h2 class="text-3xl font-bold text-gray-900">{{ greeting }}, <span class="text-violet-600">{{ rankTitle
+              }}</span></h2>
+              <p class="text-gray-500 font-medium mt-1">Keep trading to earn more XP and unlock badges!</p>
             </div>
-            <div class="flex gap-3">
-              <div class="bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 flex flex-col items-center">
-                <span class="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Current Badge</span>
-                <span class="text-sm font-semibold text-gray-700">{{ currentBadge?.description || 'Novice' }}</span>
+            <div class="flex gap-4">
+              <div
+                class="bg-gray-50 px-5 py-3 rounded-2xl border border-gray-100 flex flex-col items-center min-w-[140px]">
+                <span class="text-[10px] uppercase text-gray-400 font-bold tracking-widest mb-1">Current Badge</span>
+                <span class="text-sm font-bold text-gray-800">{{ sessionStore.currentBadge?.description ||
+                  'NoviceInvestor' }}</span>
               </div>
-              <div class="bg-violet-50 px-4 py-2 rounded-xl border border-violet-100 flex flex-col items-center">
-                <span class="text-[10px] uppercase text-violet-400 font-bold tracking-wider">XP Multiplier</span>
-                <span class="text-sm font-semibold text-violet-700">x{{ activeMultiplier.toFixed(2) }}</span>
+              <div
+                class="bg-violet-50 px-5 py-3 rounded-2xl border border-violet-100 flex flex-col items-center min-w-[140px]">
+                <span class="text-[10px] uppercase text-violet-400 font-bold tracking-widest mb-1">XP Multiplier</span>
+                <span class="text-sm font-bold text-violet-700">x{{ sessionStore.activeMultiplier }}</span>
               </div>
             </div>
           </div>
 
-          <div class="mt-4">
-            <div class="flex justify-between text-xs mb-1.5">
-              <span class="text-gray-400 font-semibold uppercase tracking-tight">Level Progress</span>
-              <span class="text-violet-600 font-bold">{{ Math.floor(xpInCurrentLevel) }} / {{ Math.floor(xpNeededForNextLevel) }} XP to LVL {{ user.level + 1 }}</span>
+          <div class="mt-8">
+            <div class="flex justify-between items-end mb-2.5">
+              <span class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">Level Progress</span>
+              <span class="text-violet-600 font-bold text-xs">
+                {{ Math.floor(xpInCurrentLevel) }} / {{ Math.floor(xpNeededForNextLevel) }} XP to LVL {{ user.level + 1
+                }}
+              </span>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden shadow-inner">
-              <div class="bg-violet-500 h-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(124,58,237,0.5)]"
+            <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner p-0.5">
+              <div
+                class="bg-violet-500 h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(124,58,237,0.4)]"
                 :style="{ width: xpProgress + '%' }"></div>
             </div>
-            <p class="text-[10px] text-gray-400 mt-1">Total Lifetime XP: {{ user.xp }}</p>
           </div>
         </div>
       </div>
 
-      <!-- NEW GOAL FORM (Always Visible) -->
-      <div class="mt-12 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h2 class="text-xl font-bold text-gray-800 mb-6">Start a New Challenge</h2>
-        
-        <div v-if="errorMessage" class="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div class="mt-12 bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
+        <h2 class="text-2xl font-bold text-gray-900 mb-8">Start a New Challenge</h2>
+        <div v-if="errorMessage"
+          class="mb-8 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-semibold rounded-2xl flex items-center gap-3">
           {{ errorMessage }}
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
           <div>
-            <label class="block text-xs font-semibold text-gray-400 uppercase mb-2">I want to...</label>
-            <select v-model="goalAction" class="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-violet-500 focus:border-violet-500">
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">I want
+              to...</label>
+            <select v-model="goalAction"
+              class="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-semibold focus:ring-violet-500">
               <option v-for="(t, key) in goalTemplates" :key="key" :value="key">{{ t.label }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-400 uppercase mb-2">Target ({{ goalTemplates[goalAction].unit || '$' }})</label>
-            <input v-model.number="goalTarget" type="number" class="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-violet-500 focus:border-violet-500" />
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Target ({{
+              goalTemplates[goalAction].unit || '$' }})</label>
+            <input v-model.number="goalTarget" type="number"
+              class="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-semibold focus:ring-violet-500" />
           </div>
-          <button 
-            @click="createGoal"
-            class="w-full bg-violet-600 text-white rounded-xl py-2.5 text-sm font-bold hover:bg-violet-700 transition-all shadow-lg shadow-violet-200 active:scale-[0.98]"
-          >
-            Create for {{ calculatedXP }} XP
+          <button @click="createGoal"
+            class="w-full bg-violet-600 text-white rounded-2xl py-4 text-sm font-bold hover:bg-violet-700 transition-all shadow-xl shadow-violet-100">
+            Start Challenge
           </button>
         </div>
       </div>
 
-      <!-- ACTIVE GOALS -->
       <div class="mt-12">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">Active Goals</h2>
-        
-        <div v-if="user?.goals && user.goals.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div v-for="(goal, idx) in user.goals" :key="idx" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-            <div class="absolute top-0 right-0 p-3">
-              <span class="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">+{{ goal.xp }} XP</span>
+        <h2 class="text-2xl font-bold text-gray-900 mb-8 px-2">Active Goals</h2>
+        <div v-if="user?.goals?.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div v-for="(goal, idx) in user.goals" :key="idx"
+            class="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 relative group hover:shadow-xl transition-all">
+            <div class="absolute top-0 right-0 p-4">
+              <span class="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">+{{ goal.xp }}
+                XP</span>
             </div>
-            <p class="font-semibold text-gray-800 pr-12">{{ goal.description }}</p>
-            
-            <div class="mt-4">
-              <div class="flex justify-between text-[10px] font-semibold text-gray-400 mb-1">
-                <span>PROGRESS</span>
-                <span>{{ Math.min(100, Math.round((goal.progress / (goal.xp / 10 || 1)) * 100)) }}%</span>
+            <p class="font-bold text-gray-900 pr-16">{{ goal.description }}</p>
+            <div class="mt-6">
+              <div class="flex justify-between items-end text-[10px] font-bold mb-2">
+                <span class="text-gray-400 uppercase">Progress</span>
+                <span class="text-violet-600">{{ Math.min(100, Math.round((goal.progress /
+                  (parseInt(goal.description.match(/\d+/)?.[0]) || 1)) * 100)) }}%</span>
               </div>
-              <div class="w-full bg-gray-50 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  class="bg-green-500 h-full transition-all duration-500" 
-                  :style="{ width: Math.min(100, (goal.progress / (goal.xp / 10 || 1)) * 100) + '%' }"
-                ></div>
+              <div class="w-full bg-gray-50 rounded-full h-2 overflow-hidden">
+                <div class="bg-green-500 h-full transition-all duration-700"
+                  :style="{ width: Math.min(100, (goal.progress / (parseInt(goal.description.match(/\d+/)?.[0]) || 1)) * 100) + '%' }">
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        <div v-else class="bg-gray-100 border-2 border-dashed border-gray-200 rounded-2xl py-12 flex flex-col items-center justify-center text-gray-400">
-           <p class="text-lg font-medium">No goals found</p>
-           <p class="text-sm">Start challenges to earn XP and level up!</p>
+        <div v-else
+          class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[32px] py-16 text-center text-gray-400 font-bold uppercase tracking-widest">
+          No Active Goals
         </div>
       </div>
     </div>
