@@ -216,16 +216,17 @@ export const useSessionStore = defineStore('session', () => {
     }
 
     // 4. Unlock Badges
-    const badgeMilestones = { 5: 2, 10: 3, 20: 4, 35: 5 }
+    const badgeMilestones = { 5: 2, 10: 3, 15: 4, 20: 5 }
     if (!activeUser.badgeIds) activeUser.badgeIds = [1]
     
     Object.entries(badgeMilestones).forEach(([level, badgeId]) => {
       const bid = parseInt(badgeId)
-      if (activeUser.level >= parseInt(level) && !activeUser.badgeIds.includes(bid)) {
+      const targetLevel = parseInt(level)
+      if (activeUser.level >= targetLevel && !activeUser.badgeIds.includes(bid)) {
         activeUser.badgeIds.push(bid)
         const badge = badges.value.find(b => b.id === bid)
         if (badge) {
-          toast.show(`New Badge Unlocked: ${badge.description}!`, 'success')
+          toast.show(`Rank Up! New Badge: ${badge.description}!`, 'success')
         }
       }
     });
