@@ -405,7 +405,7 @@ export async function createUser(profile) {
 
         avatarUrl: profile.avatarUrl,
 
-        balance: 1000.0,
+        balance: 0,
 
         level: 1,
 

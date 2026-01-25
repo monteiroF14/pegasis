@@ -58,7 +58,7 @@ export interface Transaction {
 }
 
 export interface Goal {
-  type: 'watchlist_buy' | 'reach_balance' | 'make_trades' | 'diversify';
+  type: 'total_invested' | 'reach_balance' | 'make_trades' | 'diversify';
   description: string;
   xp: number;
   progress: number;
