@@ -64,15 +64,11 @@ onUnmounted(() => {
             <!-- User Profile / Dropdown Trigger -->
             <div v-if="session.isAuthenticated && session.user" @click="toggleDropdown"
               class="flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-2 px-3 rounded-2xl transition-all select-none border border-transparent hover:border-violet-100">
-              <img :src="session.user.avatarUrl" alt="User Avatar"
-                class="w-9 h-9 rounded-full border-2 border-violet-500 shadow-sm">
+              <img :src="session.user.avatarUrl" alt="User Avatar" class="w-9 h-9 rounded-full border-2 border-violet-500 shadow-sm">
               <div class="flex flex-col">
-                <span class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight">{{ session.user.name
-                }}</span>
+                <span class="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">{{ session.user.name }}</span>
                 <div class="flex items-center gap-2 mt-0.5">
-                  <span
-                    class="text-[10px] font-black bg-violet-600 text-white px-1.5 py-0.5 rounded-md leading-none">LVL {{
-                      session.user.level }}</span>
+                  <span class="text-[10px] font-bold bg-violet-600 text-white px-1.5 py-0.5 rounded-md leading-none">LVL {{ session.user.level }}</span>
                   <div class="w-12 h-1 bg-gray-200 rounded-full overflow-hidden">
                     <div class="bg-violet-500 h-full" :style="{ width: ((session.user.xp % 1000) / 10) + '%' }"></div>
                   </div>
@@ -84,12 +80,8 @@ onUnmounted(() => {
             <div v-if="isDropdownOpen && session.isAuthenticated"
               class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-xl py-2 border border-gray-100 dark:border-gray-700 z-50">
               <div class="px-4 py-2 border-b border-gray-50 dark:border-gray-700">
-                <p class="text-[10px] font-black text-violet-500 uppercase tracking-widest">Market Rank</p>
-                <p class="text-xs font-bold text-gray-400 truncate">Professional Trader</p>
-              </div>
-              <div class="border-gray-100 dark:border-gray-700 mt-1">
-                <a href="#"
-                  class="w-full block text-sm py-2 px-4 hover:bg-gray-100 dark:hover:bg-gray-700">Notifications</a>
+                <p class="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Market Rank</p>
+                <p class="text-xs font-semibold text-gray-400 truncate">Professional Trader</p>
               </div>
               <div class="border-gray-100 dark:border-gray-700 mt-1">
                 <button @click="session.logout"

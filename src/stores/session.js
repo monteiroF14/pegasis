@@ -2,10 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { findUser, createUser, updateUser, getBadges } from '@/api/db'
 import { fetchGithubUser, logout as githubLogout } from '@/login'
+import { useToastStore } from './toast'
 
 /** @typedef {import("@/types").User} User */
 
 export const useSessionStore = defineStore('session', () => {
+  const toast = useToastStore()
   /** @type {import('vue').Ref<User | null>} */
   const user = ref(null)
   const loading = ref(false)
@@ -31,8 +33,8 @@ export const useSessionStore = defineStore('session', () => {
   async function buyStock(stock, quantity) {
     if (!user.value) return
     const cost = stock.price * quantity
-    if (user.value.balance < cost) throw new Error('Insufficient balance')
-
+    
+    // Purchases are now free as per user request
     const multiplier = await getActiveMultiplier()
     const xpGained = Math.floor(50 * multiplier)
 
@@ -70,32 +72,14 @@ export const useSessionStore = defineStore('session', () => {
     }
 
     const updates = {
-      balance: user.value.balance - cost,
+      // balance remains same
       portfolio,
       history: [...(user.value.history || []), historyEntry],
       xp: user.value.xp + xpGained
     }
 
-    // Auto level up logic (10% growth)
-    let tempXp = updates.xp
-    let tempLevel = user.value.level
-    
-    const getXPToLevel = (lvl) => Math.floor(1000 * Math.pow(1.1, lvl - 1))
-    
-    // This is a simplified cumulative XP check
-    const getCumulativeXP = (lvl) => {
-      let total = 0
-      for (let i = 1; i < lvl; i++) total += getXPToLevel(i)
-      return total
-    }
-
-    while (tempXp >= getCumulativeXP(tempLevel + 1)) {
-      tempLevel++
-    }
-    updates.level = tempLevel
-
-    await updateUser(user.value.id, updates)
-    await refreshUser()
+    await applyProgressAndSave(updates, { type: 'BUY', symbol: stock.symbol, quantity })
+    toast.show(`Successfully purchased ${quantity} units of ${stock.symbol}!`)
   }
 
   async function sellStock(portfolioItem, quantity, currentPrice) {
@@ -136,23 +120,87 @@ export const useSessionStore = defineStore('session', () => {
       xp: user.value.xp + xpGained
     }
 
-    await updateUser(user.value.id, updates)
-    await refreshUser()
+    await applyProgressAndSave(updates, { type: 'SELL', pnl })
+    toast.show(`Successfully sold ${quantity} units of ${portfolioItem.stockId} for $${revenue.toFixed(2)}`)
   }
 
   /**
-   * Initializes the session by fetching the user data from DB using the GitHub token
-   * @param {string} token 
+   * Internal engine to handle level-ups, goal progress, and badge unlocks
    */
+  async function applyProgressAndSave(updates, event) {
+    const activeUser = { ...user.value, ...updates }
+    
+    // 1. Update Goal Progress
+    if (activeUser.goals) {
+      activeUser.goals = activeUser.goals.map(goal => {
+        let newProgress = goal.progress
+
+        if (event.type === 'BUY') {
+          if (goal.description.toLowerCase().includes('watchlist') && activeUser.watchlist?.includes(event.symbol)) {
+            newProgress += event.quantity
+          } else if (goal.description.toLowerCase().includes('transactions') || goal.description.toLowerCase().includes('trade')) {
+            newProgress += 1
+          }
+        }
+        
+        if (goal.description.toLowerCase().includes('balance')) {
+          newProgress = activeUser.balance
+        }
+
+        if (goal.description.toLowerCase().includes('different stocks') || goal.description.toLowerCase().includes('diversify')) {
+          newProgress = activeUser.portfolio.length
+        }
+
+        return { ...goal, progress: newProgress }
+      })
+
+      // 2. Check for completed goals
+      const completedGoals = activeUser.goals.filter(g => {
+        const targetNumber = g.description.match(/\d+/);
+        const target = targetNumber ? parseInt(targetNumber[0]) : 0;
+        return g.progress >= target
+      })
+
+      if (completedGoals.length > 0) {
+        activeUser.xp += completedGoals.reduce((sum, g) => sum + g.xp, 0)
+        activeUser.goals = activeUser.goals.filter(g => !completedGoals.includes(g))
+      }
+    }
+
+    // 3. Handle Level Ups
+    const getXPToLevel = (lvl) => Math.floor(1000 * Math.pow(1.1, lvl - 1))
+    const getCumulativeXP = (lvl) => {
+      let total = 0
+      for (let i = 1; i < lvl; i++) total += getXPToLevel(i)
+      return total
+    }
+
+    while (activeUser.xp >= getCumulativeXP(activeUser.level + 1)) {
+      activeUser.level++
+    }
+
+    // 4. Unlock Badges
+    const badgeMilestones = { 5: 2, 10: 3, 20: 4, 35: 5 }
+    if (!activeUser.badgeIds) activeUser.badgeIds = [1]
+    
+    Object.entries(badgeMilestones).forEach(([level, badgeId]) => {
+      const bid = parseInt(badgeId)
+      if (activeUser.level >= parseInt(level) && !activeUser.badgeIds.includes(bid)) {
+        activeUser.badgeIds.push(bid)
+      }
+    });
+
+    await updateUser(user.value.id, activeUser)
+    await refreshUser()
+  }
+
   async function login(token) {
     loading.value = true
     error.value = null
     try {
       const githubProfile = await fetchGithubUser(token)
       const userId = String(githubProfile.id)
-      
       let dbUser = await findUser(userId)
-      
       if (!dbUser) {
         dbUser = await createUser({
           id: userId,
@@ -160,8 +208,11 @@ export const useSessionStore = defineStore('session', () => {
           avatarUrl: githubProfile.avatar_url
         })
       }
-      
       user.value = dbUser
+      if (!user.value.badgeIds || user.value.badgeIds.length === 0) {
+        await updateUser(user.value.id, { badgeIds: [1] })
+        await refreshUser()
+      }
       return dbUser
     } catch (e) {
       error.value = e.message
@@ -176,63 +227,37 @@ export const useSessionStore = defineStore('session', () => {
     githubLogout()
   }
 
-  /**
-   * Attempt to restore session from local storage token
-   */
   async function init() {
     const token = localStorage.getItem('accessToken')
     if (token) {
       try {
         await login(token)
       } catch (e) {
-        console.error("Failed to restore session:", e)
         logout()
       }
     }
   }
 
-  /**
-   * Refresh user data from database
-   */
   async function refreshUser() {
     if (!user.value) return
     try {
       const updatedUser = await findUser(user.value.id)
-      if (updatedUser) {
-        user.value = updatedUser
-      }
+      if (updatedUser) user.value = updatedUser
     } catch (e) {
       console.error('Failed to refresh user:', e)
     }
   }
 
-  /**
-   * Toggles a stock in the user's watchlist
-   * @param {string} stockId 
-   */
   async function toggleWatchlist(stockId) {
     if (!user.value) return
-
-    // Create a copy of the current watchlist
     const currentWatchlist = [...(user.value.watchlist || [])]
     const index = currentWatchlist.indexOf(stockId)
-
-    if (index === -1) {
-      // Add
-      currentWatchlist.push(stockId)
-    } else {
-      // Remove
-      currentWatchlist.splice(index, 1)
-    }
-
-    // Optimistic update
+    if (index === -1) currentWatchlist.push(stockId)
+    else currentWatchlist.splice(index, 1)
     user.value.watchlist = currentWatchlist
-
     try {
       await updateUser(user.value.id, { watchlist: currentWatchlist })
     } catch (e) {
-      console.error('Failed to update watchlist:', e)
-      // Revert on error could be implemented here
       await refreshUser() 
     }
   }
@@ -246,6 +271,8 @@ export const useSessionStore = defineStore('session', () => {
     logout,
     refreshUser,
     init,
-    toggleWatchlist
+    toggleWatchlist,
+    buyStock,
+    sellStock
   }
 })

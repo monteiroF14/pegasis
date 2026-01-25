@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import Header from "./components/layout/Header.vue";
+import Toast from "./components/ui/Toast.vue";
 import { useSessionStore } from "@/stores/session";
 
 const route = useRoute();
@@ -16,6 +17,7 @@ onMounted(() => {
 <template>
   <Header v-if="showHeader"/>
   <router-view />
+  <Toast />
 </template>
 
 <style scoped>
