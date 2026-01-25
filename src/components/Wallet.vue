@@ -1,16 +1,19 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useSessionStore } from '../stores/session'
+import { useWishlistStore } from '../stores/wishlist'
 import { getMarketData } from '../api/db'
-import { Wallet, TrendingUp, History, ArrowUpRight, ArrowDownRight, Briefcase, X, Minus } from 'lucide-vue-next'
+import { Wallet, TrendingUp, History, ArrowUpRight, ArrowDownRight, Briefcase, X, Star } from 'lucide-vue-next'
 
 const sessionStore = useSessionStore()
+const wishlistStore = useWishlistStore()
 const marketData = ref([])
 const loading = ref(true)
 
 const selectedAsset = ref(null)
 const sellQuantity = ref(1)
 const isSelling = ref(false)
+const sortByFavorites = ref(false)
 
 const openSellModal = (item) => {
   selectedAsset.value = item
@@ -62,13 +65,14 @@ const getLivePrice = (symbol) => {
 }
 
 const portfolioWithLivePrices = computed(() => {
-  return portfolio.value.map(item => {
+  const data = portfolio.value.map(item => {
     const stock = marketData.value.find(s => s.symbol === item.stockId)
     const livePrice = stock ? stock.price : null
     const logo = stock ? stock.logo : null
     const currentValue = livePrice ? livePrice * item.quantity : item.buyPrice * item.quantity
     const pnl = livePrice ? (livePrice - item.buyPrice) * item.quantity : 0
     const pnlPercent = livePrice ? ((livePrice - item.buyPrice) / item.buyPrice) * 100 : 0
+    const isFavorite = wishlistStore.isInWishlist(item.stockId)
     
     return {
       ...item,
@@ -76,9 +80,15 @@ const portfolioWithLivePrices = computed(() => {
       logo,
       currentValue,
       pnl,
-      pnlPercent
+      pnlPercent,
+      isFavorite
     }
   })
+
+  if (sortByFavorites.value) {
+    return data.sort((a, b) => (b.isFavorite === a.isFavorite) ? 0 : b.isFavorite ? 1 : -1)
+  }
+  return data
 })
 
 const totalPortfolioValue = computed(() => {
@@ -157,6 +167,14 @@ const formatDate = (dateStr) => {
               <Briefcase class="w-6 h-6 text-gray-400" />
               Your Assets
             </h2>
+            <button 
+              @click="sortByFavorites = !sortByFavorites"
+              class="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-xl transition-all border"
+              :class="sortByFavorites ? 'bg-yellow-50 text-yellow-600 border-yellow-200' : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'"
+            >
+              <Star class="w-3 h-3" :fill="sortByFavorites ? 'currentColor' : 'none'" />
+              Favorites First
+            </button>
           </div>
 
           <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -191,7 +209,10 @@ const formatDate = (dateStr) => {
                         {{ item.stockId.substring(0, 2) }}
                       </div>
                       <div>
-                        <p class="font-semibold text-gray-900 leading-tight">{{ item.name }}</p>
+                        <div class="flex items-center gap-1.5">
+                          <p class="font-semibold text-gray-900 leading-tight">{{ item.name }}</p>
+                          <Star v-if="item.isFavorite" class="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                        </div>
                         <p class="text-[10px] text-gray-400 font-semibold tracking-[0.2em] uppercase">{{ item.stockId }}</p>
                       </div>
                     </div>

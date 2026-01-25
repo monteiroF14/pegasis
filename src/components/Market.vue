@@ -15,6 +15,7 @@ const session = useSessionStore()
 const viewMode = ref('grid') // 'grid' | 'list'
 const sortBy = ref('symbol') // 'symbol' | 'price' | 'change'
 const sortOrder = ref('asc')
+const sortByFavorites = ref(false)
 
 const selectedStock = ref(null)
 const buyAmount = ref(100) // Default currency amount
@@ -70,6 +71,12 @@ const filteredStocks = computed(() => {
   )
 
   return result.sort((a, b) => {
+    if (sortByFavorites.value) {
+      const aFav = wishlist.isInWishlist(a.symbol)
+      const bFav = wishlist.isInWishlist(b.symbol)
+      if (aFav !== bFav) return bFav ? 1 : -1
+    }
+
     let modifier = sortOrder.value === 'asc' ? 1 : -1
     if (sortBy.value === 'price') {
       return (a.price - b.price) * modifier
@@ -114,6 +121,12 @@ const filteredStocks = computed(() => {
         </div>
 
         <div class="flex gap-2">
+          <button @click="sortByFavorites = !sortByFavorites"
+            class="px-4 py-2 bg-white border border-gray-200 rounded-2xl text-sm font-semibold flex items-center gap-2 hover:bg-gray-50 transition-colors"
+            :class="sortByFavorites ? 'text-yellow-500 border-yellow-200 bg-yellow-50' : 'text-gray-600'">
+            Favorites
+            <Star class="w-3 h-3" :fill="sortByFavorites ? 'currentColor' : 'none'" />
+          </button>
           <button @click="toggleSort('symbol')"
             class="px-4 py-2 bg-white border border-gray-200 rounded-2xl text-sm font-semibold flex items-center gap-2 hover:bg-gray-50 transition-colors"
             :class="sortBy === 'symbol' ? 'text-violet-600 border-violet-200' : 'text-gray-600'">
