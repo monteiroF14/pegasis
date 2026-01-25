@@ -78,14 +78,28 @@ onUnmounted(() => {
 
             <!-- Dropdown Menu -->
             <div v-if="isDropdownOpen && session.isAuthenticated"
-              class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-xl py-2 border border-gray-100 dark:border-gray-700 z-50">
+              class="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-xl py-2 border border-gray-100 dark:border-gray-700 z-50">
               <div class="px-4 py-2 border-b border-gray-50 dark:border-gray-700">
                 <p class="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Market Rank</p>
                 <p class="text-xs font-semibold text-gray-400 truncate">Professional Trader</p>
               </div>
-              <div class="border-gray-100 dark:border-gray-700 mt-1">
+              
+              <div class="px-2 py-2 border-b border-gray-50 dark:border-gray-700 space-y-1">
+                <button @click="session.deposit(300)" 
+                  class="w-full text-left px-3 py-2 text-xs font-bold text-green-600 hover:bg-green-50 rounded-xl transition-colors flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Deposit $300
+                </button>
+                <button @click="session.withdraw(300)" 
+                  class="w-full text-left px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 rounded-xl transition-colors flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+                  Withdraw $300
+                </button>
+              </div>
+
+              <div class="border-gray-100 dark:border-gray-700 mt-1 px-2">
                 <button @click="session.logout"
-                  class="w-full text-left px-4 py-2 text-sm font-semibold cursor-pointer text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  class="w-full text-left px-3 py-2 text-sm font-semibold cursor-pointer text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl">
                   Logout
                 </button>
               </div>

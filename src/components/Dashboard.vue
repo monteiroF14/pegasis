@@ -51,9 +51,11 @@ const createGoal = async () => {
 
   const template = goalTemplates[goalAction.value]
   const newGoal = {
+    type: goalAction.value,
     description: `${template.label} ${goalTarget.value} ${template.unit}`,
     xp: calculatedXP.value,
-    progress: 0
+    progress: goalAction.value === 'reach_balance' ? user.value.balance : 
+              (goalAction.value === 'diversify' ? user.value.portfolio.length : 0)
   }
   
   const updatedGoals = [...(user.value.goals || []), newGoal]

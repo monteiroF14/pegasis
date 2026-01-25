@@ -5,11 +5,14 @@ import { fetchGithubUser, logout as githubLogout } from '@/login'
 import { useToastStore } from './toast'
 
 /** @typedef {import("@/types").User} User */
+/** @typedef {import("@/types").Badge} Badge */
 
 export const useSessionStore = defineStore('session', () => {
   const toast = useToastStore()
   /** @type {import('vue').Ref<User | null>} */
   const user = ref(null)
+  /** @type {import('vue').Ref<Badge[]>} */
+  const badges = ref([])
   const loading = ref(false)
   const error = ref(null)
 
@@ -18,32 +21,59 @@ export const useSessionStore = defineStore('session', () => {
   /**
    * Calculates the current XP multiplier based on owned badges
    */
-  async function getActiveMultiplier() {
+  const activeMultiplier = computed(() => {
+    if (!user.value || !user.value.badgeIds || user.value.badgeIds.length === 0 || badges.value.length === 0) return 1.0
+    const ownedBadges = badges.value.filter(b => user.value.badgeIds.includes(b.id))
+    if (ownedBadges.length === 0) return 1.0
+    return Math.max(...ownedBadges.map(b => b.multiplier))
+  })
+
+  async function fetchAllBadges() {
     try {
-      const allBadges = await getBadges()
-      if (!user.value || !user.value.badgeIds || user.value.badgeIds.length === 0) return 1.0
-      const ownedBadges = allBadges.filter(b => user.value.badgeIds.includes(b.id))
-      if (ownedBadges.length === 0) return 1.0
-      return Math.max(...ownedBadges.map(b => b.multiplier))
+      badges.value = await getBadges()
     } catch (e) {
-      return 1.0
+      console.error('Failed to fetch badges', e)
     }
   }
 
-  async function buyStock(stock, quantity) {
+  async function deposit(amount = 300) {
     if (!user.value) return
-    const cost = stock.price * quantity
+    const updates = { balance: user.value.balance + amount }
+    await applyProgressAndSave(updates, { type: 'DEPOSIT' })
+    toast.show(`Successfully deposited $${amount}!`)
+  }
+
+  async function withdraw(amount = 300) {
+    if (!user.value) return
+    if (user.value.balance < amount) {
+      toast.show('Insufficient balance for withdrawal', 'error')
+      return
+    }
+    const updates = { balance: user.value.balance - amount }
+    await applyProgressAndSave(updates, { type: 'WITHDRAW' })
+    toast.show(`Successfully withdrew $${amount}!`)
+  }
+
+  /**
+   * Buys stock based on total currency value
+   * @param {Object} stock 
+   * @param {number} totalValue - Amount in dollars to spend
+   */
+  async function buyStock(stock, totalValue) {
+    if (!user.value) return
+    if (totalValue <= 0) throw new Error('Amount must be greater than zero')
     
-    // Purchases are now free as per user request
-    const multiplier = await getActiveMultiplier()
-    const xpGained = Math.floor(50 * multiplier)
+    // Fractional quantity
+    const quantity = totalValue / stock.price
+    
+    const xpGained = Math.floor(50 * activeMultiplier.value)
 
     const portfolio = [...(user.value.portfolio || [])]
     const existingIndex = portfolio.findIndex(p => p.stockId === stock.symbol)
     
     if (existingIndex > -1) {
       const existing = portfolio[existingIndex]
-      const totalCost = (existing.buyPrice * existing.quantity) + cost
+      const totalCost = (existing.buyPrice * existing.quantity) + totalValue
       portfolio[existingIndex] = {
         ...existing,
         quantity: existing.quantity + quantity,
@@ -67,19 +97,18 @@ export const useSessionStore = defineStore('session', () => {
       name: stock.description,
       quantity,
       price: stock.price,
-      totalValue: cost,
+      totalValue: totalValue,
       date: new Date().toISOString()
     }
 
     const updates = {
-      // balance remains same
       portfolio,
       history: [...(user.value.history || []), historyEntry],
       xp: user.value.xp + xpGained
     }
 
     await applyProgressAndSave(updates, { type: 'BUY', symbol: stock.symbol, quantity })
-    toast.show(`Successfully purchased ${quantity} units of ${stock.symbol}!`)
+    toast.show(`Purchased ${quantity.toFixed(4)} units of ${stock.symbol}! +${xpGained} XP`)
   }
 
   async function sellStock(portfolioItem, quantity, currentPrice) {
@@ -87,7 +116,7 @@ export const useSessionStore = defineStore('session', () => {
     if (portfolioItem.quantity < quantity) throw new Error('Insufficient quantity')
 
     const revenue = currentPrice * quantity
-    const multiplier = await getActiveMultiplier()
+    const multiplier = activeMultiplier.value
     const xpGained = Math.floor(40 * multiplier)
 
     const portfolio = [...(user.value.portfolio || [])]
@@ -121,7 +150,7 @@ export const useSessionStore = defineStore('session', () => {
     }
 
     await applyProgressAndSave(updates, { type: 'SELL', pnl })
-    toast.show(`Successfully sold ${quantity} units of ${portfolioItem.stockId} for $${revenue.toFixed(2)}`)
+    toast.show(`Sold ${quantity.toFixed(4)} units of ${portfolioItem.stockId}. +${xpGained} XP`)
   }
 
   /**
@@ -136,18 +165,18 @@ export const useSessionStore = defineStore('session', () => {
         let newProgress = goal.progress
 
         if (event.type === 'BUY') {
-          if (goal.description.toLowerCase().includes('watchlist') && activeUser.watchlist?.includes(event.symbol)) {
+          if (goal.type === 'watchlist_buy' && activeUser.watchlist?.includes(event.symbol)) {
             newProgress += event.quantity
-          } else if (goal.description.toLowerCase().includes('transactions') || goal.description.toLowerCase().includes('trade')) {
+          } else if (goal.type === 'make_trades') {
             newProgress += 1
           }
         }
         
-        if (goal.description.toLowerCase().includes('balance')) {
+        if (goal.type === 'reach_balance' || event.type === 'DEPOSIT' || event.type === 'WITHDRAW') {
           newProgress = activeUser.balance
         }
 
-        if (goal.description.toLowerCase().includes('different stocks') || goal.description.toLowerCase().includes('diversify')) {
+        if (goal.type === 'diversify') {
           newProgress = activeUser.portfolio.length
         }
 
@@ -162,8 +191,10 @@ export const useSessionStore = defineStore('session', () => {
       })
 
       if (completedGoals.length > 0) {
-        activeUser.xp += completedGoals.reduce((sum, g) => sum + g.xp, 0)
+        const totalGoalXp = completedGoals.reduce((sum, g) => sum + g.xp, 0)
+        activeUser.xp += totalGoalXp
         activeUser.goals = activeUser.goals.filter(g => !completedGoals.includes(g))
+        toast.show(`Challenge Completed! Gained ${totalGoalXp} bonus XP`, 'success')
       }
     }
 
@@ -175,8 +206,13 @@ export const useSessionStore = defineStore('session', () => {
       return total
     }
 
+    const oldLevel = activeUser.level
     while (activeUser.xp >= getCumulativeXP(activeUser.level + 1)) {
       activeUser.level++
+    }
+    
+    if (activeUser.level > oldLevel) {
+      toast.show(`Level Up! You are now Level ${activeUser.level}`, 'success')
     }
 
     // 4. Unlock Badges
@@ -187,6 +223,10 @@ export const useSessionStore = defineStore('session', () => {
       const bid = parseInt(badgeId)
       if (activeUser.level >= parseInt(level) && !activeUser.badgeIds.includes(bid)) {
         activeUser.badgeIds.push(bid)
+        const badge = badges.value.find(b => b.id === bid)
+        if (badge) {
+          toast.show(`New Badge Unlocked: ${badge.description}!`, 'success')
+        }
       }
     });
 
@@ -209,6 +249,7 @@ export const useSessionStore = defineStore('session', () => {
         })
       }
       user.value = dbUser
+      await fetchAllBadges()
       if (!user.value.badgeIds || user.value.badgeIds.length === 0) {
         await updateUser(user.value.id, { badgeIds: [1] })
         await refreshUser()
@@ -235,6 +276,8 @@ export const useSessionStore = defineStore('session', () => {
       } catch (e) {
         logout()
       }
+    } else {
+      await fetchAllBadges()
     }
   }
 
@@ -264,15 +307,19 @@ export const useSessionStore = defineStore('session', () => {
 
   return {
     user,
+    badges,
     loading,
     error,
     isAuthenticated,
+    activeMultiplier,
     login,
     logout,
     refreshUser,
     init,
     toggleWatchlist,
     buyStock,
-    sellStock
+    sellStock,
+    deposit,
+    withdraw
   }
 })

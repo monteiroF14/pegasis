@@ -196,7 +196,7 @@ const formatDate = (dateStr) => {
                       </div>
                     </div>
                   </td>
-                  <td class="px-8 py-5 text-right font-semibold text-gray-700">{{ item.quantity }}</td>
+                  <td class="px-8 py-5 text-right font-semibold text-gray-700">{{ item.quantity.toFixed(4) }}</td>
                   <td class="px-8 py-5 text-right">
                     <div class="flex flex-col items-end">
                       <span class="flex items-center gap-1 font-semibold text-sm" :class="item.pnl >= 0 ? 'text-green-600' : 'text-red-600'">
@@ -297,7 +297,7 @@ const formatDate = (dateStr) => {
               </div>
               <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Available</p>
-                <p class="text-xl font-semibold text-gray-900">{{ selectedAsset.quantity }} <span class="text-xs text-gray-400">units</span></p>
+                <p class="text-xl font-semibold text-gray-900">{{ selectedAsset.quantity.toFixed(4) }} <span class="text-xs text-gray-400">units</span></p>
               </div>
             </div>
 
