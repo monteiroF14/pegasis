@@ -83,7 +83,7 @@ const portfolioWithLivePrices = computed(() => {
       pnlPercent,
       isFavorite
     }
-  })
+  }).filter(item => !isNaN(item.livePrice) && item.livePrice !== null)
 
   if (sortByFavorites.value) {
     return data.sort((a, b) => (b.isFavorite === a.isFavorite) ? 0 : b.isFavorite ? 1 : -1)

@@ -66,8 +66,9 @@ onMounted(fetchStocks)
 
 const filteredStocks = computed(() => {
   let result = stocks.value.filter(s =>
-    s.description?.toLowerCase().includes(search.value.toLowerCase()) ||
-    s.symbol?.toLowerCase().includes(search.value.toLowerCase())
+    (s.description?.toLowerCase().includes(search.value.toLowerCase()) ||
+    s.symbol?.toLowerCase().includes(search.value.toLowerCase())) &&
+    !isNaN(s.price) && s.price !== null
   )
 
   return result.sort((a, b) => {
