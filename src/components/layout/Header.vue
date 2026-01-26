@@ -1,12 +1,18 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { Github } from "lucide-vue-next";
 import { useSessionStore } from "@/stores/session";
 import { loginWithGitHub } from "@/login.js";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo2-cropped.png";
 
 const session = useSessionStore();
+const router = useRouter();
+const route = useRoute();
+
 const isDropdownOpen = ref(false);
+const showAuthToast = ref(false);
+let toastTimeoutId = null;
 
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value;
@@ -18,16 +24,47 @@ const closeDropdown = (e) => {
   }
 };
 
+const showToast = () => {
+  showAuthToast.value = true;
+
+  if (toastTimeoutId) clearTimeout(toastTimeoutId);
+  toastTimeoutId = setTimeout(() => {
+    showAuthToast.value = false;
+  }, 3000);
+};
+
+const handleProtectedNav = (path) => {
+  if (!session.isAuthenticated && route.path === "/") {
+    showToast();
+    return;
+  }
+
+  router.push(path);
+};
+
 onMounted(() => {
   document.addEventListener("click", closeDropdown);
 });
 
 onUnmounted(() => {
   document.removeEventListener("click", closeDropdown);
+  if (toastTimeoutId) clearTimeout(toastTimeoutId);
 });
 </script>
 
 <template>
+  <!-- TOAST (BOTTOM RIGHT) -->
+  <div
+    v-if="showAuthToast"
+    class="fixed bottom-6 right-6 z-50 bg-white dark:bg-gray-900 border border-violet-200 dark:border-gray-700 shadow-2xl rounded-2xl px-5 py-4 flex items-center gap-3 animate-toast-in"
+  >
+    <div class="w-2 h-2 bg-violet-600 rounded-full animate-pulse"></div>
+
+    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
+      You must be authenticated to access this feature.
+    </p>
+  </div>
+
   <header class="w-4/5 mx-auto mt-4">
     <nav class="bg-gray-50 border-gray-200 dark:bg-gray-800">
       <div class="flex justify-between items-center mx-auto">
@@ -37,46 +74,54 @@ onUnmounted(() => {
           class="mx-auto flex items-center justify-center p-0"
           aria-current="page"
         >
-          <img
-            :src="logo"
-            alt="Pegasis logo"
-            class="h-10 w-auto dark:invert"
-          />
+          <img :src="logo" alt="Pegasis logo" class="h-10 w-auto dark:invert" />
         </router-link>
 
-        <div
-          class="justify-between items-center w-full flex order-1"
-          id="mobile-menu-2"
-        >
+        <div class="justify-between items-center w-full flex order-1">
           <ul class="flex mx-auto font-medium flex-row space-x-8 mt-0">
+            <!-- HUB -->
             <li>
-              <router-link
-                to="/dashboard"
-                exact-active-class="text-violet-700 dark:text-violet-400 font-semibold after:w-full"
-                class="relative block py-2 pr-4 pl-3 text-zinc-800 hover:text-violet-700 dark:text-zinc-400 dark:hover:text-violet-400 after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-0 after:h-0.5 after:bg-violet-700 dark:after:bg-violet-400 after:transition-all after:duration-300 hover:after:w-full"
+              <button
+                @click="handleProtectedNav('/dashboard')"
+                :class="[
+                  'relative block py-2 px-3 hover:text-violet-700 dark:hover:text-violet-400 after:content-[\'\'] after:absolute after:left-0 after:bottom-0 after:w-0 after:h-0.5 after:bg-violet-700 dark:after:bg-violet-400 after:transition-all after:duration-300 hover:after:w-full',
+                  route.path === '/dashboard'
+                    ? 'text-violet-700 dark:text-violet-400 font-semibold after:w-full'
+                    : 'text-zinc-800 dark:text-zinc-400',
+                ]"
               >
                 Hub
-              </router-link>
+              </button>
             </li>
 
+            <!-- WALLET -->
             <li>
-              <router-link
-                to="/wallet"
-                exact-active-class="text-violet-700 dark:text-violet-400 font-semibold after:w-full"
-                class="relative block py-2 pr-4 pl-3 text-zinc-800 hover:text-violet-700 dark:text-zinc-400 dark:hover:text-violet-400 after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-0 after:h-0.5 after:bg-violet-700 dark:after:bg-violet-400 after:transition-all after:duration-300 hover:after:w-full"
+              <button
+                @click="handleProtectedNav('/wallet')"
+                :class="[
+                  'relative block py-2 px-3 hover:text-violet-700 dark:hover:text-violet-400 after:content-[\'\'] after:absolute after:left-0 after:bottom-0 after:w-0 after:h-0.5 after:bg-violet-700 dark:after:bg-violet-400 after:transition-all after:duration-300 hover:after:w-full',
+                  route.path === '/wallet'
+                    ? 'text-violet-700 dark:text-violet-400 font-semibold after:w-full'
+                    : 'text-zinc-800 dark:text-zinc-400',
+                ]"
               >
                 Wallet
-              </router-link>
+              </button>
             </li>
 
+            <!-- MARKET -->
             <li>
-              <router-link
-                to="/market"
-                exact-active-class="text-violet-700 dark:text-violet-400 font-semibold after:w-full"
-                class="relative block py-2 pr-4 pl-3 text-zinc-800 hover:text-violet-700 dark:text-zinc-400 dark:hover:text-violet-400 after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-0 after:h-0.5 after:bg-violet-700 dark:after:bg-violet-400 after:transition-all after:duration-300 hover:after:w-full"
+              <button
+                @click="handleProtectedNav('/market')"
+                :class="[
+                  'relative block py-2 px-3 hover:text-violet-700 dark:hover:text-violet-400 after:content-[\'\'] after:absolute after:left-0 after:bottom-0 after:w-0 after:h-0.5 after:bg-violet-700 dark:after:bg-violet-400 after:transition-all after:duration-300 hover:after:w-full',
+                  route.path === '/market'
+                    ? 'text-violet-700 dark:text-violet-400 font-semibold after:w-full'
+                    : 'text-zinc-800 dark:text-zinc-400',
+                ]"
               >
                 Market
-              </router-link>
+              </button>
             </li>
           </ul>
 
@@ -97,14 +142,14 @@ onUnmounted(() => {
 
               <div class="flex flex-col">
                 <span
-                  class="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight"
+                  class="text-sm font-semibold text-gray-800 dark:text-gray-100"
                 >
                   {{ session.user.name }}
                 </span>
 
                 <div class="flex items-center gap-2 mt-0.5">
                   <span
-                    class="text-[10px] font-bold bg-violet-600 text-white px-1.5 py-0.5 rounded-md leading-none"
+                    class="text-[10px] font-bold bg-violet-600 text-white px-1.5 py-0.5 rounded-md"
                   >
                     LVL {{ session.user.level }}
                   </span>
@@ -114,7 +159,7 @@ onUnmounted(() => {
                   >
                     <div
                       class="bg-violet-500 h-full"
-                      :style="{ width: ((session.user.xp % 1000) / 10) + '%' }"
+                      :style="{ width: (session.user.xp % 1000) / 10 + '%' }"
                     ></div>
                   </div>
                 </div>
@@ -144,14 +189,14 @@ onUnmounted(() => {
               >
                 <button
                   @click="session.deposit(300)"
-                  class="w-full text-left px-3 py-2 text-xs font-bold text-green-600 hover:bg-green-50 rounded-xl transition-colors flex items-center gap-2"
+                  class="w-full text-left px-3 py-2 text-xs font-bold text-green-600 hover:bg-green-50 rounded-xl"
                 >
                   Deposit $300
                 </button>
 
                 <button
                   @click="session.withdraw(300)"
-                  class="w-full text-left px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 rounded-xl transition-colors flex items-center gap-2"
+                  class="w-full text-left px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 rounded-xl"
                 >
                   Withdraw $300
                 </button>
@@ -160,7 +205,7 @@ onUnmounted(() => {
               <div class="mt-1 px-2">
                 <button
                   @click="session.logout"
-                  class="w-full text-left px-3 py-2 text-sm font-semibold cursor-pointer text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
+                  class="w-full text-left px-3 py-2 text-sm font-semibold text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
                 >
                   Logout
                 </button>
@@ -171,7 +216,7 @@ onUnmounted(() => {
             <button
               v-if="!session.isAuthenticated"
               @click="loginWithGitHub"
-              class="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-lg shadow-violet-100 active:scale-95 text-sm"
+              class="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-violet-100 active:scale-95 text-sm"
             >
               <Github class="w-4 h-4" />
               Login with GitHub
@@ -182,3 +227,20 @@ onUnmounted(() => {
     </nav>
   </header>
 </template>
+
+<style scoped>
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.25s ease-out;
+}
+</style>

@@ -121,6 +121,21 @@
           "date": "2026-01-24T23:53:39.586Z"
         }
       ]
+    },
+    {
+      "id": "103114621",
+      "name": "Francisco Mesquita",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/103114621?v=4",
+      "balance": 0,
+      "level": 1,
+      "xp": 0,
+      "badgeIds": [
+        1
+      ],
+      "goals": [],
+      "watchlist": [],
+      "portfolio": [],
+      "history": []
     }
   ],
   "market": [

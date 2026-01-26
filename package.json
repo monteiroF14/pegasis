@@ -28,6 +28,7 @@
   "devDependencies": {
     "@pinia/testing": "^1.0.3",
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/test-utils": "^2.4.6",
     "autoprefixer": "^10.4.21",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
