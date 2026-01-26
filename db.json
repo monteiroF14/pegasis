@@ -126,16 +126,166 @@
       "id": "103114621",
       "name": "Francisco Mesquita",
       "avatarUrl": "https://avatars.githubusercontent.com/u/103114621?v=4",
-      "balance": 0,
-      "level": 1,
-      "xp": 0,
+      "balance": 10200,
+      "level": 5,
+      "xp": 5358,
       "badgeIds": [
-        1
+        1,
+        2
       ],
-      "goals": [],
-      "watchlist": [],
-      "portfolio": [],
-      "history": []
+      "goals": [
+        {
+          "type": "watchlist_buy",
+          "description": "Buy stocks from watchlist 20 stocks",
+          "xp": 3000,
+          "progress": 0
+        },
+        {
+          "type": "make_trades",
+          "description": "Perform transactions 10 trades",
+          "xp": 1000,
+          "progress": 9
+        },
+        {
+          "type": "reach_balance",
+          "description": "Reach a balance of 1111111 ",
+          "xp": 550455,
+          "progress": 10200
+        }
+      ],
+      "watchlist": [
+        "SAN"
+      ],
+      "portfolio": [
+        {
+          "id": 1769387337525,
+          "stockId": "SAN",
+          "name": "Banco Santander SA",
+          "quantity": 242.01612903225805,
+          "buyPrice": 12.4,
+          "buyDate": "2026-01-26T00:28:57.525Z"
+        },
+        {
+          "id": 1769387451533,
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 3.62844702467344,
+          "buyPrice": 248.03999999999996,
+          "buyDate": "2026-01-26T00:30:51.533Z"
+        }
+      ],
+      "history": [
+        {
+          "id": 1769387337525,
+          "type": "BUY",
+          "stockId": "SAN",
+          "name": "Banco Santander SA",
+          "quantity": 161.29032258064515,
+          "price": 12.4,
+          "totalValue": 2000,
+          "date": "2026-01-26T00:28:57.525Z"
+        },
+        {
+          "id": 1769387348354,
+          "type": "BUY",
+          "stockId": "SAN",
+          "name": "Banco Santander SA",
+          "quantity": 80.7258064516129,
+          "price": 12.4,
+          "totalValue": 1001,
+          "date": "2026-01-26T00:29:08.354Z"
+        },
+        {
+          "id": 1769387451533,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:30:51.533Z"
+        },
+        {
+          "id": 1769387453195,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:30:53.195Z"
+        },
+        {
+          "id": 1769387454416,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:30:54.416Z"
+        },
+        {
+          "id": 1769387456150,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:30:56.150Z"
+        },
+        {
+          "id": 1769387457174,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:30:57.174Z"
+        },
+        {
+          "id": 1769387458226,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:30:58.226Z"
+        },
+        {
+          "id": 1769387459473,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:30:59.473Z"
+        },
+        {
+          "id": 1769387460415,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:31:00.415Z"
+        },
+        {
+          "id": 1769387461316,
+          "type": "BUY",
+          "stockId": "AAPL",
+          "name": "Apple Inc",
+          "quantity": 0.4031607805192711,
+          "price": 248.04,
+          "totalValue": 100,
+          "date": "2026-01-26T00:31:01.316Z"
+        }
+      ]
     }
   ],
   "market": [

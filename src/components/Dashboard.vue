@@ -8,16 +8,11 @@ const sessionStore = useSessionStore();
 const user = computed(() => sessionStore.user);
 
 // ---- GOAL CREATION ----
-const goalAction = ref("watchlist_buy");
+const goalAction = ref("reach_balance");
 const goalTarget = ref(5);
 const errorMessage = ref("");
 
 const goalTemplates = {
-  watchlist_buy: {
-    label: "Buy stocks from watchlist",
-    unit: "stocks",
-    baseXP: 150,
-  },
   reach_balance: { label: "Reach a balance of", unit: "", baseXP: 1 },
   make_trades: { label: "Perform transactions", unit: "trades", baseXP: 100 },
   diversify: { label: "Own different stocks", unit: "companies", baseXP: 300 },
