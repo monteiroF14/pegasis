@@ -251,9 +251,10 @@ const rankTitle = computed(() => {
           </div>
           <button
             @click="createGoal"
-            class="w-full bg-violet-600 text-white rounded-2xl py-4 text-sm font-bold hover:bg-violet-700 transition-all shadow-xl shadow-violet-100"
+            class="w-full bg-violet-600 text-white rounded-2xl py-4 text-sm font-bold hover:bg-violet-700 transition-all shadow-xl shadow-violet-100 flex items-center justify-center gap-2"
           >
             Start Challenge
+            <span class="bg-violet-500/50 px-2 py-0.5 rounded-lg text-[10px] uppercase tracking-wider font-extrabold">+{{ calculatedXP }} XP</span>
           </button>
         </div>
       </div>
