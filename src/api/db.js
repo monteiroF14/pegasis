@@ -4,7 +4,9 @@ import { ValidationError } from "./error.js";
 /** @typedef {import("../types").Stock} Stock */
 /** @typedef {import("../types").Badge} Badge */
 
-const API_BASE_URL = "https://ppegasis.netlify.app";
+const API_BASE_URL = import.meta.env.PROD
+    ? "https://ppegasis.netlify.app"
+    : "http://localhost:3000";
 
 async function handleResponse(response) {
     if (response.ok) {
