@@ -4,7 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import { Github } from "lucide-vue-next";
 import { useSessionStore } from "@/stores/session";
 import { loginWithGitHub } from "@/login.js";
-import logo from "@/assets/logo2-cropped.png";
+import logo from "@/assets/logo.png";
 
 const session = useSessionStore();
 const router = useRouter();
