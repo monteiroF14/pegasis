@@ -4,13 +4,13 @@ import { ValidationError } from "./error.js";
 /** @typedef {import("../types").Stock} Stock */
 /** @typedef {import("../types").Badge} Badge */
 
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "https://ppegasis.netlify.app";
 
 async function handleResponse(response) {
     if (response.ok) {
         return response.json();
     }
-    
+
     let errorMessage = `${response.status} ${response.statusText}`;
     try {
         const contentType = response.headers.get("content-type");
@@ -24,7 +24,7 @@ async function handleResponse(response) {
     } catch (e) {
         // Fallback to default errorMessage
     }
-    
+
     throw new Error(errorMessage);
 }
 
@@ -110,7 +110,7 @@ export async function addUser(user) {
     if (!Array.isArray(badgeIds) || !badgeIds.every(bid => typeof bid === 'number')) {
         throw new ValidationError('User badgeIds must be an array of numbers.');
     }
-    if (!Array.isArray(goals) || !goals.every(g => 
+    if (!Array.isArray(goals) || !goals.every(g =>
         typeof g.description === 'string' && g.description.trim() !== '' &&
         typeof g.xp === 'number' && g.xp >= 0 &&
         typeof g.progress === 'number' && g.progress >= 0
@@ -187,7 +187,7 @@ export async function updateMarketFields(market) {
     if (!market || !market.id) {
         throw new ValidationError("Invalid market object for update.");
     }
-    
+
     // Allow updating any field passed in market object
     const response = await fetch(`${API_BASE_URL}/market/${market.id}`, {
         method: "PATCH",
@@ -223,7 +223,7 @@ export async function upsertMarket(market) {
 
         if (error.message && (error.message.includes('404') || error.message.includes('Not Found'))) {
 
-             return await addMarket(market);
+            return await addMarket(market);
 
         }
 
@@ -339,7 +339,7 @@ export async function updateUser(id, updates) {
 
 
 
-    
+
 
 
 
